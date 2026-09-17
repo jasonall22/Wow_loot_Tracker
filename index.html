@@ -46,7 +46,10 @@
               <h2 id="dashboard-title">APOC</h2>
               <p id="dashboard-subtitle" class="muted"></p>
             </div>
-            <span id="dashboard-role" class="role-pill"></span>
+            <div class="dashboard-actions">
+              <button id="create-pairing" class="pairing-trigger" type="button" hidden>Connection code</button>
+              <span id="dashboard-role" class="role-pill"></span>
+            </div>
           </div>
           <div class="dashboard-content">
             <div class="dashboard-main">
@@ -54,17 +57,6 @@
                 <div><span>RAIDS</span><strong id="raid-count">—</strong></div>
                 <div><span>ACCESS</span><strong id="access-label">—</strong></div>
               </div>
-              <section id="pairing-panel" class="pairing-panel" hidden>
-                <div class="section-heading"><p class="eyebrow">COMPANION CONNECTION</p><span>Upload-only</span></div>
-                <p class="muted">Connect one local companion to this guild. The code expires in five minutes.</p>
-                <button id="create-pairing" type="button">Create connection code <span>→</span></button>
-                <div id="pairing-result" class="pairing-result" hidden>
-                  <code id="pairing-code"></code>
-                  <button id="copy-pairing" class="secondary" type="button">Copy code</button>
-                  <p id="pairing-expiry" class="muted"></p>
-                </div>
-                <p id="pairing-message" class="message" role="status" aria-live="polite"></p>
-              </section>
             </div>
             <section class="dashboard-archive">
               <div class="section-heading"><p class="eyebrow">RAID ARCHIVE</p><span>Latest activity</span></div>
@@ -84,6 +76,18 @@
           </div>
           <p id="detail-message" class="message" role="status" aria-live="polite"></p>
         </div>
+        <dialog id="pairing-dialog" class="pairing-dialog" aria-labelledby="pairing-title" aria-describedby="pairing-description">
+          <button id="close-pairing" class="dialog-close" type="button" aria-label="Close connection code dialog">×</button>
+          <p class="eyebrow">COMPANION CONNECTION</p>
+          <h2 id="pairing-title">Pair your bridge</h2>
+          <p id="pairing-description" class="muted">Enter this code in your local bridge. It expires in five minutes and can be used once.</p>
+          <p id="pairing-message" class="message" role="status" aria-live="polite"></p>
+          <div id="pairing-result" class="pairing-result" hidden>
+            <code id="pairing-code"></code>
+            <p id="pairing-expiry" class="muted"></p>
+            <button id="copy-pairing" type="button">Copy code</button>
+          </div>
+        </dialog>
       </section>
     </main>
     <script type="module" src="/app.js"></script>
