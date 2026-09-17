@@ -7,6 +7,9 @@ const form = document.querySelector('#sign-in-form');
 const message = document.querySelector('#message');
 const guildList = document.querySelector('#guild-list');
 const dashboardMessage = document.querySelector('#dashboard-message');
+const pairingPanel = document.querySelector('#pairing-panel');
+const pairingMessage = document.querySelector('#pairing-message');
+let selectedGuildID = null;
 let guilds = [];
 
 function setMessage(text, kind = '') {
@@ -70,12 +73,16 @@ async function loadGuilds() {
 async function openDashboard(entry) {
   const details = entry.guild ?? {};
   const membership = entry.membership ?? {};
+  selectedGuildID = details.id;
   signedIn.hidden = true;
   dashboard.hidden = false;
   document.querySelector('#dashboard-title').textContent = details.name ?? 'Guild';
   document.querySelector('#dashboard-subtitle').textContent = [details.realm, details.faction].filter(Boolean).join(' · ');
   document.querySelector('#dashboard-role').textContent = membership.role ?? 'member';
   document.querySelector('#access-label').textContent = membership.role === 'admin' ? 'Admin' : membership.role === 'officer' ? 'Officer' : 'Member';
+  pairingPanel.hidden = entry.permissions?.uploadRaids !== true;
+  document.querySelector('#pairing-result').hidden = true;
+  pairingMessage.textContent = '';
   const raidList = document.querySelector('#raid-list');
   raidList.replaceChildren();
   dashboardMessage.textContent = 'Loading raid archive…';
@@ -111,6 +118,29 @@ async function openDashboard(entry) {
     dashboardMessage.className = 'message error';
   }
 }
+
+document.querySelector('#create-pairing').addEventListener('click', async () => {
+  const button = document.querySelector('#create-pairing');
+  button.disabled = true; pairingMessage.textContent = 'Creating one-time code…'; pairingMessage.className = 'message';
+  try {
+    const response = await fetch('/api/pairing', {
+      method: 'POST', headers: { Authorization: `Bearer ${state.session.access_token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ guild: selectedGuildID }), cache: 'no-store',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error?.message ?? 'Could not create a connection code.');
+    document.querySelector('#pairing-code').textContent = data.challenge;
+    document.querySelector('#pairing-expiry').textContent = `Expires ${new Date(data.expiresAt).toLocaleTimeString()}`;
+    document.querySelector('#pairing-result').hidden = false;
+    pairingMessage.textContent = 'Give this code to the companion on the same pairing screen. It can be used once.';
+  } catch (error) { pairingMessage.textContent = error.message; pairingMessage.className = 'message error'; }
+  finally { button.disabled = false; }
+});
+
+document.querySelector('#copy-pairing').addEventListener('click', async () => {
+  await navigator.clipboard.writeText(document.querySelector('#pairing-code').textContent);
+  pairingMessage.textContent = 'Connection code copied.';
+});
 
 async function openRaidDetail(raid, guildID) {
   dashboard.hidden = true;

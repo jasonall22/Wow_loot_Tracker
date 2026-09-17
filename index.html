@@ -52,6 +52,17 @@
             <div><span>RAIDS</span><strong id="raid-count">—</strong></div>
             <div><span>ACCESS</span><strong id="access-label">—</strong></div>
           </div>
+          <section id="pairing-panel" class="pairing-panel" hidden>
+            <div class="section-heading"><p class="eyebrow">COMPANION CONNECTION</p><span>Upload-only</span></div>
+            <p class="muted">Connect one local companion to this guild. The code expires in five minutes.</p>
+            <button id="create-pairing" type="button">Create connection code <span>→</span></button>
+            <div id="pairing-result" class="pairing-result" hidden>
+              <code id="pairing-code"></code>
+              <button id="copy-pairing" class="secondary" type="button">Copy code</button>
+              <p id="pairing-expiry" class="muted"></p>
+            </div>
+            <p id="pairing-message" class="message" role="status" aria-live="polite"></p>
+          </section>
           <div class="section-heading"><p class="eyebrow">RAID ARCHIVE</p><span>Latest activity</span></div>
           <div id="raid-list" class="raid-list"></div>
           <p id="dashboard-message" class="message" role="status" aria-live="polite"></p>
