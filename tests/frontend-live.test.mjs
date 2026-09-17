@@ -41,6 +41,12 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   let deleted = false;
   let corrected = false;
   const adminActions = [];
+  const attendance = [
+    { name: 'Player', present: true },
+    ...Array.from({ length: 199 }, (_, index) => ({ name: `Raider ${index + 1}`, present: index !== 0 })),
+    { name: 'Late arrival', present: true },
+  ];
+  const memberOffsets = [];
   const fetch = async (input, options = {}) => {
     const url = new URL(input, 'https://portal.example');
     const view = url.searchParams.get('view');
@@ -48,11 +54,16 @@ test('an open raid detail refreshes a removed drop without a user click', async 
     if (view === 'raids') return Response.json({ raids: deleted ? [] : [{ id: 'raid-1', name: 'Tonight', revision: 2 }] });
     if (view === 'drops') {
       dropReads += 1;
-      const drops = [{ id: 'drop-1', item_id: 32336, item_name: 'Kept', boss: 'Boss', winner: corrected ? 'Player' : null, award_type: corrected ? 'MS' : null }];
+      const drops = [{ id: 'drop-1', item_id: 32336, item_name: 'Kept', boss: 'Boss', winner: corrected ? 'Player' : 'Off-roster', award_type: 'MS' }];
       if (dropReads === 1) drops.push({ item_id: 32337, item_name: 'Removed', boss: 'Boss' });
       return Response.json({ drops });
     }
-    if (view === 'members') return Response.json({ members: [] });
+    if (view === 'members') {
+      assert.equal(url.searchParams.get('limit'), '200');
+      const offset = Number(url.searchParams.get('offset'));
+      memberOffsets.push(offset);
+      return Response.json({ members: attendance.slice(offset, offset + 200) });
+    }
     if (url.pathname === '/api/item') {
       assert.equal(url.searchParams.get('format'), '2');
       return Response.json(url.searchParams.get('id') === '32337'
@@ -94,6 +105,8 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   get('#raid-list').children[0].listeners.click();
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(get('#drop-count').textContent, '2 records');
+  assert.equal(get('#member-count').textContent, '201 players');
+  assert.deepEqual(memberOffsets, [0, 200]);
   assert.equal(get('#drop-list').children.length, 2);
   const itemButton = get('#drop-list').children[0].children[0];
   assert.equal(itemButton.children[0].src, '/api/item?id=32336&icon=1');
@@ -118,10 +131,17 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   await get('#save-raid-name').listeners.click();
   assert.equal(get('#detail-title').textContent, 'Renamed raid');
   get('#drop-list').children[0].children.at(-1).listeners.click();
+  const recipientOptions = get('#award-winner').children;
+  assert.equal(recipientOptions[0].textContent, 'No recipient');
+  assert.equal(recipientOptions.length, 203);
+  assert.equal(recipientOptions.find(option => option.value === 'Raider 1').textContent, 'Raider 1 (not currently present)');
+  assert.equal(recipientOptions.at(-1).textContent, 'Off-roster (not in raid attendance)');
+  assert.equal(get('#award-winner').value, 'Off-roster');
   get('#award-winner').value = 'Player';
   get('#award-type').value = 'MS';
   await get('#save-award').listeners.click();
   assert.equal(adminActions.at(-1).action, 'edit_drop');
+  assert.equal(adminActions.at(-1).winner, 'Player');
   assert.equal(get('#drop-list').children[0].children[2].textContent, 'Awarded to Player · MS');
   get('#manage-raid').listeners.click();
   await get('#delete-raid').listeners.click();

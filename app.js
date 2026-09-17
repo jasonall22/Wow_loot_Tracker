@@ -19,6 +19,7 @@ let pairingRequest = null;
 let selectedGuildID = null;
 let guilds = [];
 let activeRaid = null;
+let raidMembers = [];
 let editingDrop = null;
 let canManageRaids = false;
 let refreshPromise = null;
@@ -348,6 +349,7 @@ document.querySelector('#copy-pairing').addEventListener('click', async () => {
 
 async function openRaidDetail(raid, guildID) {
   activeRaid = { raid, guildID };
+  raidMembers = [];
   raidDetailSignature = '';
   dashboard.hidden = true;
   raidDetail.hidden = false;
@@ -366,32 +368,46 @@ async function loadRaidDetail(raid, guildID, quiet = false) {
   const memberList = document.querySelector('#member-list');
   try {
     const base = `/api/portal?guild=${encodeURIComponent(guildID)}&raid=${encodeURIComponent(raid.id)}`;
-    const [dropResponse, memberResponse] = await Promise.all([
+    const [dropResponse, members] = await Promise.all([
       portalFetch(`${base}&view=drops`),
-      portalFetch(`${base}&view=members`),
+      loadRaidMembers(base),
     ]);
-    const drops = await dropResponse.json(); const members = await memberResponse.json();
-    if (!dropResponse.ok || !memberResponse.ok) throw new Error('Could not load raid details.');
+    const drops = await dropResponse.json();
+    if (!dropResponse.ok) throw new Error('Could not load raid details.');
     if (activeRaid?.raid.id !== raid.id || raidDetail.hidden) return;
-    const signature = JSON.stringify([drops.drops ?? [], members.members ?? []]);
+    raidMembers = members;
+    const signature = JSON.stringify([drops.drops ?? [], members]);
     document.querySelector('#detail-message').textContent = '';
     document.querySelector('#detail-message').className = 'message';
-    if (!drops.drops?.length && !members.members?.length) document.querySelector('#detail-message').textContent = 'No loot or roster records have been captured for this raid yet.';
+    if (!drops.drops?.length && !members.length) document.querySelector('#detail-message').textContent = 'No loot or roster records have been captured for this raid yet.';
     if (signature === raidDetailSignature) return;
     raidDetailSignature = signature;
+    if (awardDialog.open) populateRecipientOptions(document.querySelector('#award-winner').value);
     document.querySelector('#drop-count').textContent = `${drops.drops?.length ?? 0} records`;
-    document.querySelector('#member-count').textContent = `${members.members?.length ?? 0} players`;
+    document.querySelector('#member-count').textContent = `${members.length} players`;
     hideItemTooltip();
     dropList.replaceChildren();
     memberList.replaceChildren();
     renderDropList(dropList, drops.drops ?? []);
-    renderDetailList(memberList, members.members ?? [], (member) => [member.name, member.class || 'Class not recorded', member.present ? 'Present' : 'Absent']);
+    renderDetailList(memberList, members, (member) => [member.name, member.class || 'Class not recorded', member.present ? 'Present' : 'Absent']);
   } catch (error) {
     if (activeRaid?.raid.id === raid.id && !raidDetail.hidden) {
       document.querySelector('#detail-message').textContent = quiet ? `Live refresh paused: ${error.message}` : error.message;
       document.querySelector('#detail-message').className = 'message error';
     }
   }
+}
+
+async function loadRaidMembers(base) {
+  const members = [];
+  for (let offset = 0; offset <= 1000; offset += 200) {
+    const response = await portalFetch(`${base}&view=members&limit=200&offset=${offset}`);
+    const data = await response.json();
+    if (!response.ok || !Array.isArray(data.members)) throw new Error('Could not load raid attendance.');
+    members.push(...data.members);
+    if (data.members.length < 200) return members;
+  }
+  throw new Error('Raid attendance is too large to load.');
 }
 
 async function refreshVisible() {
@@ -447,7 +463,7 @@ function renderDropList(container, drops) {
       edit.addEventListener('click', () => {
         editingDrop = drop;
         document.querySelector('#award-item').textContent = name;
-        document.querySelector('#award-winner').value = drop.winner ?? '';
+        populateRecipientOptions(drop.winner);
         document.querySelector('#award-type').value = drop.award_type ?? '';
         document.querySelector('#award-note').value = drop.award_note ?? '';
         document.querySelector('#award-dialog-message').textContent = '';
@@ -457,6 +473,32 @@ function renderDropList(container, drops) {
     }
     container.append(item);
   }
+}
+
+function populateRecipientOptions(currentWinner) {
+  const select = document.querySelector('#award-winner');
+  select.replaceChildren();
+  const empty = document.createElement('option');
+  empty.value = ''; empty.textContent = 'No recipient'; select.append(empty);
+  const names = new Map();
+  for (const member of raidMembers) {
+    const name = typeof member.name === 'string' ? member.name.trim() : '';
+    if (name && !names.has(name)) names.set(name, member.present === true);
+    else if (name && member.present === true) names.set(name, true);
+  }
+  for (const [name, present] of [...names].sort(([a], [b]) => a.localeCompare(b))) {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = present ? name : `${name} (not currently present)`;
+    select.append(option);
+  }
+  if (currentWinner && !names.has(currentWinner)) {
+    const option = document.createElement('option');
+    option.value = currentWinner;
+    option.textContent = `${currentWinner} (not in raid attendance)`;
+    select.append(option);
+  }
+  select.value = currentWinner || '';
 }
 
 document.querySelector('#manage-raid').addEventListener('click', () => {
