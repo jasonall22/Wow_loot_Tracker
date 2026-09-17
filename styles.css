@@ -3,7 +3,7 @@
 body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 12% 12%, #24354f 0, transparent 34%), #0c111b; }
 .shell { width: min(1120px, calc(100% - 40px)); min-height: 100vh; margin: auto; display: grid; grid-template-columns: 1fr 420px; gap: 90px; align-items: center; }
 .eyebrow { color: #78d7bb; font-size: 11px; font-weight: 800; letter-spacing: .18em; margin: 0 0 18px; }
-h1 { font-size: clamp(56px, 8.5vw, 116px); letter-spacing: -.07em; line-height: .89; margin: 0; }
+h1 { font-size: clamp(48px, 6vw, 78px); letter-spacing: -.065em; line-height: .94; margin: 0; }
 h1 span { color: #78d7bb; } h2 { font-size: 29px; letter-spacing: -.04em; margin: 0 0 10px; }
 .intro { color: #aab5c6; font-size: 18px; line-height: 1.55; max-width: 480px; margin: 28px 0; }.status { color: #d4dce8; font-size: 13px; display: flex; align-items: center; gap: 9px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: #78d7bb; box-shadow: 0 0 16px #78d7bb; }
