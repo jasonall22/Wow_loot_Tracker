@@ -66,10 +66,22 @@ input:focus { border-color: var(--wow-gold); box-shadow: 0 0 0 3px rgba(223, 173
 .loot-row { grid-template-columns: minmax(0, 1fr) auto; }
 .loot-item { width: fit-content; max-width: 100%; margin: 0; padding: 0; display: inline-flex; align-items: center; gap: 10px; background: none; color: var(--wow-ivory); text-align: left; border: 0; border-radius: 4px; font-size: 13px; font-weight: 700; }
 .loot-item:hover { background: none; color: var(--wow-gold-bright); filter: none; }
+.loot-item:hover strong { text-decoration: underline; text-decoration-color: #a383cc; text-underline-offset: 3px; }
 .loot-item:focus-visible { outline: 2px solid var(--wow-gold-bright); outline-offset: 3px; }
 .loot-icon { flex: none; width: 38px; height: 38px; object-fit: cover; border: 1px solid #8b7145; border-radius: 5px; background: #0e1521; }
 .loot-row > span { align-self: center; }
-.item-tooltip { position: fixed; z-index: 100; max-width: min(340px, calc(100vw - 24px)); max-height: min(450px, calc(100vh - 24px)); overflow: auto; padding: 14px 18px; border: 1px solid #856a3e; border-radius: 10px; background: #101622; box-shadow: 0 16px 42px rgba(0,0,0,.75); color: #f4ead7; pointer-events: none; }
-.item-tooltip p { margin: 4px 0; font-size: 12px; line-height: 1.35; }
-.item-tooltip strong { display: block; margin-bottom: 8px; color: var(--wow-gold-bright); font-size: 14px; }
-.item-tooltip small { display: block; margin-top: 10px; color: var(--wow-muted); }
+.item-tooltip { position: fixed; z-index: 1000; width: 340px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); overflow: auto; overflow-wrap: anywhere; padding: 15px 17px; border: 1px solid #857096; border-radius: 6px; background: #080d19; box-shadow: 0 12px 36px #000b, inset 0 0 0 1px #ffffff0b; color: #f1f1f1; font: 14px/1.5 'Segoe UI', system-ui, sans-serif; pointer-events: none; }
+.item-tooltip p { margin: 0; }
+.item-tooltip .tooltip-line { min-height: 1.35em; white-space: pre-wrap; }
+.item-tooltip .tooltip-line:first-child { font-size: 16px; font-weight: 650; margin-bottom: 5px; }
+.item-tooltip .tooltip-name { display: block; color: #d4b4ff; font-size: 16px; margin-bottom: 7px; }
+.item-tooltip .tooltip-note { color: #b7c2d1; }
+.item-tooltip .tooltip-credit { border-top: 1px solid #354052; margin-top: 12px; padding-top: 8px; font-size: 12px; color: #a0afc1; }
+.item-tooltip .q { color: #ffd100; }
+.item-tooltip .q0 { color: #aaa; }
+.item-tooltip .q1 { color: #fff; }
+.item-tooltip .q2 { color: #1eff00; }
+.item-tooltip .q3 { color: #54a8ff; }
+.item-tooltip .q4 { color: #cf91ff; }
+.item-tooltip .q5 { color: #ff8000; }
+.item-tooltip .q6, .item-tooltip .q7 { color: #e6cc80; }

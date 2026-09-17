@@ -34,23 +34,59 @@ function decodeEntities(text) {
   });
 }
 
-export function plainTooltip(html) {
+export function tooltipLines(html) {
   if (typeof html !== 'string') return [];
-  const safe = html.slice(0, METADATA_LIMIT)
-    .replace(/<(script|style|iframe|object|svg|math|template|noscript)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/<(br|p|div|tr|li|h[1-6])\b[^>]*>/gi, '\n')
-    .replace(/<\/(p|div|tr|li|h[1-6])\s*>/gi, '\n')
-    .replace(/<\/?(?:td|th)\b[^>]*>/gi, '  ')
-    .replace(/<[^>]*>/g, '');
-  return decodeEntities(safe).split('\n').map(line => line.replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 40).map(line => line.slice(0, 300));
+  const lines = []; let current = []; let length = 0; let blocked = null;
+  const stack = [];
+  const flush = () => {
+    if (current.length) {
+      current[0].text = current[0].text.trimStart();
+      current.at(-1).text = current.at(-1).text.trimEnd();
+      const spans = current.filter(span => span.text);
+      if (spans.length && lines.length < 40) lines.push(spans);
+    }
+    current = []; length = 0;
+  };
+  for (const token of html.slice(0, METADATA_LIMIT).match(/<!--[\s\S]*?-->|<[^>]*>|[^<]+/g) ?? []) {
+    if (token.startsWith('<!--')) continue;
+    if (token.startsWith('<')) {
+      const match = /^<\s*(\/?)\s*([a-z][a-z0-9]*)\b/i.exec(token);
+      if (!match) continue;
+      const [, closing, rawTag] = match; const tag = rawTag.toLowerCase();
+      if (blocked) { if (closing && tag === blocked) blocked = null; continue; }
+      if (!closing && /^(script|style|iframe|object|svg|math|template|noscript)$/.test(tag)) { blocked = tag; continue; }
+      if (/^(br|p|div|tr|li|h[1-6])$/.test(tag)) flush();
+      if (/^(td|th)$/.test(tag) && current.length && length < 300) { current.at(-1).text += '  '; length += 2; }
+      if (closing) {
+        const index = stack.findLastIndex(entry => entry.tag === tag);
+        if (index !== -1) stack.splice(index);
+      } else if (!/^(br|img|hr|input|meta|link)$/.test(tag)) {
+        const classes = /\bclass\s*=\s*["']([^"']*)["']/i.exec(token)?.[1] ?? '';
+        const quality = /(?:^|\s)(q[0-7]?)(?=\s|$)/.exec(classes)?.[1] ?? stack.at(-1)?.quality ?? 'q1';
+        stack.push({ tag, quality });
+      }
+    } else if (!blocked && lines.length < 40 && length < 300) {
+      const value = decodeEntities(token).replace(/\s+/g, ' ').slice(0, 300 - length);
+      if (!value.trim() && !current.length) continue;
+      const quality = stack.at(-1)?.quality ?? 'q1';
+      if (current.at(-1)?.quality === quality) current.at(-1).text += value;
+      else current.push({ text: value, quality });
+      length += value.length;
+    }
+  }
+  flush();
+  return lines;
+}
+
+export function plainTooltip(html) {
+  return tooltipLines(html).map(line => line.map(span => span.text).join('').replace(/\s+/g, ' ').trim());
 }
 
 export async function fetchItem(id, fetcher = fetch) {
   const raw = await bounded(`https://nether.wowhead.com/tooltip/item/${id}?dataEnv=5&locale=0`, METADATA_LIMIT, fetcher);
   const data = JSON.parse(new TextDecoder().decode(raw));
   if (!data || typeof data !== 'object' || !/^[a-zA-Z0-9_]{1,100}$/.test(data.icon ?? '')) throw new Error('Invalid item details');
-  return { itemID: id, name: typeof data.name === 'string' ? data.name.slice(0, 200) : '', icon: data.icon.toLowerCase(), lines: plainTooltip(data.tooltip) };
+  return { itemID: id, name: typeof data.name === 'string' ? data.name.slice(0, 200) : '', icon: data.icon.toLowerCase(), lines: tooltipLines(data.tooltip) };
 }
 
 export async function fetchIcon(icon, fetcher = fetch) {

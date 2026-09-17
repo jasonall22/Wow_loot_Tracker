@@ -15,13 +15,17 @@ test('public tooltip HTML becomes inert text and fixed-host icon lookup', async 
     assert.equal(options.redirect, 'manual');
     if (url.includes('nether.wowhead.com')) return Response.json({
       icon: 'INV_Boots_05', name: 'Test Boots',
-      tooltip: '<span class="q4">Test Boots</span><br><script>alert(1)</script>+20 Strength &amp; Agility',
+      tooltip: '<span class="q4">Test Boots</span><br><script>alert(1)</script><span class="q2">Equip: +20 Strength &amp; Agility</span>',
     });
     return new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), { headers: { 'content-type': 'image/jpeg' } });
   };
   const item = await fetchItem(32336, fetcher);
   assert.equal(item.icon, 'inv_boots_05');
-  assert.deepEqual(item.lines, ['Test Boots', '+20 Strength & Agility']);
+  assert.deepEqual(item.lines, [
+    [{ text: 'Test Boots', quality: 'q4' }],
+    [{ text: 'Equip: +20 Strength & Agility', quality: 'q2' }],
+  ]);
+  assert.deepEqual(plainTooltip('<b>Ranged</b><th>Bow</th>'), ['Ranged Bow']);
   const icon = await fetchIcon(item.icon, fetcher);
   assert.equal(icon.length, 4);
   assert.deepEqual(urls, [

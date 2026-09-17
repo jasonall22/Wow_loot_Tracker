@@ -35,8 +35,10 @@ function hideItemTooltip() {
 
 function positionItemTooltip(anchor) {
   const rect = anchor.getBoundingClientRect();
-  itemTooltip.style.left = `${Math.max(12, Math.min(rect.left, window.innerWidth - itemTooltip.offsetWidth - 12))}px`;
-  itemTooltip.style.top = `${rect.bottom + itemTooltip.offsetHeight + 12 < window.innerHeight ? rect.bottom + 8 : Math.max(12, rect.top - itemTooltip.offsetHeight - 8)}px`;
+  const width = itemTooltip.offsetWidth; const height = itemTooltip.offsetHeight;
+  const left = rect.right + width + 12 < window.innerWidth ? rect.right + 12 : rect.left - width - 12;
+  itemTooltip.style.left = `${Math.max(12, Math.min(left, window.innerWidth - width - 12))}px`;
+  itemTooltip.style.top = `${Math.max(12, Math.min(rect.top, window.innerHeight - height - 12))}px`;
 }
 
 async function showItemTooltip(anchor, id, name) {
@@ -45,8 +47,8 @@ async function showItemTooltip(anchor, id, name) {
   tooltipAnchor = anchor;
   anchor.setAttribute('aria-describedby', 'item-tooltip');
   itemTooltip.replaceChildren();
-  const heading = document.createElement('strong'); heading.textContent = name;
-  const note = document.createElement('p'); note.textContent = 'Loading item stats…';
+  const heading = document.createElement('strong'); heading.className = 'tooltip-name'; heading.textContent = name;
+  const note = document.createElement('p'); note.className = 'tooltip-note'; note.textContent = 'Loading item stats…';
   itemTooltip.append(heading, note);
   itemTooltip.hidden = false;
   positionItemTooltip(anchor);
@@ -64,9 +66,17 @@ async function showItemTooltip(anchor, id, name) {
     const lines = details.itemID === id && Array.isArray(details.lines) ? details.lines.slice(0, 40) : [];
     if (!lines.length) throw new Error('Unavailable');
     for (const line of lines) {
-      const p = document.createElement('p'); p.textContent = String(line); itemTooltip.append(p);
+      const p = document.createElement('p'); p.className = 'tooltip-line';
+      for (const part of Array.isArray(line) ? line : []) {
+        if (typeof part?.text !== 'string') continue;
+        const span = document.createElement('span');
+        span.className = /^q[0-7]?$/.test(part.quality) ? part.quality : 'q1';
+        span.textContent = part.text;
+        p.append(span);
+      }
+      itemTooltip.append(p);
     }
-    const credit = document.createElement('small'); credit.textContent = 'TBC · Wowhead · base item stats'; itemTooltip.append(credit);
+    const credit = document.createElement('p'); credit.className = 'tooltip-credit'; credit.textContent = 'TBC · Wowhead · base item stats'; itemTooltip.append(credit);
     positionItemTooltip(anchor);
   } catch {
     itemDetails.delete(id);

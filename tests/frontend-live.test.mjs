@@ -23,7 +23,7 @@ class Element {
   get innerHTML() { return this.html; }
   setAttribute() {}
   removeAttribute() {}
-  getBoundingClientRect() { return { left: 30, top: 40, bottom: 80 }; }
+  getBoundingClientRect() { return { left: 30, right: 210, top: 40, bottom: 80 }; }
   focus() {}
 }
 
@@ -46,7 +46,9 @@ test('an open raid detail refreshes a removed drop without a user click', async 
       return Response.json({ drops });
     }
     if (view === 'members') return Response.json({ members: [] });
-    if (url.pathname === '/api/item') return Response.json({ itemID: 32336, lines: ['Kept', '+20 Strength'] });
+    if (url.pathname === '/api/item') return Response.json({ itemID: 32336, lines: [
+      [{ text: 'Kept', quality: 'q4' }], [{ text: '+20 Strength', quality: 'q2' }],
+    ] });
     throw new Error(`unexpected request: ${input}`);
   };
   const document = {
@@ -80,7 +82,9 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   itemButton.listeners.pointerenter();
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(get('#item-tooltip').hidden, false);
-  assert.equal(get('#item-tooltip').children[1].textContent, '+20 Strength');
+  assert.equal(get('#item-tooltip').children[0].children[0].className, 'q4');
+  assert.equal(get('#item-tooltip').children[1].children[0].textContent, '+20 Strength');
+  assert.equal(get('#item-tooltip').style.left, '222px');
   assert.equal(intervals[0].delay, 5000);
   await intervals[0].callback();
   assert.equal(get('#drop-count').textContent, '1 records');
