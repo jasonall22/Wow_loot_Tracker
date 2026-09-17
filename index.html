@@ -37,6 +37,24 @@
           <div id="guild-list" class="guild-list"></div>
           <button id="sign-out" class="secondary" type="button">Sign out</button>
         </div>
+        <div id="dashboard" hidden>
+          <button id="back-to-guilds" class="back" type="button">← Your guilds</button>
+          <div class="dashboard-heading">
+            <div>
+              <p class="eyebrow">GUILD OVERVIEW</p>
+              <h2 id="dashboard-title">APOC</h2>
+              <p id="dashboard-subtitle" class="muted"></p>
+            </div>
+            <span id="dashboard-role" class="role-pill"></span>
+          </div>
+          <div class="metrics">
+            <div><span>RAIDS</span><strong id="raid-count">—</strong></div>
+            <div><span>ACCESS</span><strong id="access-label">—</strong></div>
+          </div>
+          <div class="section-heading"><p class="eyebrow">RAID ARCHIVE</p><span>Latest activity</span></div>
+          <div id="raid-list" class="raid-list"></div>
+          <p id="dashboard-message" class="message" role="status" aria-live="polite"></p>
+        </div>
       </section>
     </main>
     <script type="module" src="/app.js"></script>
