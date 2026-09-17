@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+.vercel/
+node_modules/
+backups/
+releases/
+coverage/
+*.log
+data/
