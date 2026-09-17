@@ -47,13 +47,14 @@ async function loadGuilds() {
     return;
   }
   for (const guild of data.guilds) {
+    const details = guild.guild ?? {};
     const button = document.createElement('button');
     button.className = 'guild';
     button.type = 'button';
     button.innerHTML = `<strong></strong><span>Open guild <b>→</b></span>`;
-    button.querySelector('strong').textContent = guild.name ?? 'Unnamed guild';
+    button.querySelector('strong').textContent = details.name ?? 'Unnamed guild';
     button.addEventListener('click', () => {
-      sessionStorage.setItem('apoc_selected_guild', guild.id);
+      sessionStorage.setItem('apoc_selected_guild', details.id);
       button.querySelector('span').textContent = 'Selected';
     });
     guildList.append(button);
