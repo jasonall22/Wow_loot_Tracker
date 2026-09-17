@@ -2,6 +2,7 @@ const state = { config: null, session: null };
 const signedOut = document.querySelector('#signed-out');
 const signedIn = document.querySelector('#signed-in');
 const dashboard = document.querySelector('#dashboard');
+const raidDetail = document.querySelector('#raid-detail');
 const form = document.querySelector('#sign-in-form');
 const message = document.querySelector('#message');
 const guildList = document.querySelector('#guild-list');
@@ -95,15 +96,54 @@ async function openDashboard(entry) {
     for (const raid of raids) {
       const item = document.createElement('div');
       item.className = 'raid-row';
+      item.tabIndex = 0;
+      item.setAttribute('role', 'button');
       const date = raid.created_at ? new Date(raid.created_at).toLocaleDateString() : 'Date unavailable';
       item.innerHTML = '<div><strong></strong><span></span></div><b>→</b>';
       item.querySelector('strong').textContent = raid.name;
       item.querySelector('span').textContent = `${date} · revision ${raid.revision}`;
+      item.addEventListener('click', () => openRaidDetail(raid, details.id));
+      item.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') openRaidDetail(raid, details.id); });
       raidList.append(item);
     }
   } catch (error) {
     dashboardMessage.textContent = error.message;
     dashboardMessage.className = 'message error';
+  }
+}
+
+async function openRaidDetail(raid, guildID) {
+  dashboard.hidden = true;
+  raidDetail.hidden = false;
+  document.querySelector('#detail-title').textContent = raid.name ?? 'Raid';
+  document.querySelector('#detail-meta').textContent = raid.created_at ? new Date(raid.created_at).toLocaleString() : 'Date unavailable';
+  const dropList = document.querySelector('#drop-list');
+  const memberList = document.querySelector('#member-list');
+  dropList.replaceChildren(); memberList.replaceChildren();
+  document.querySelector('#detail-message').textContent = 'Loading raid details…';
+  try {
+    const headers = { Authorization: `Bearer ${state.session.access_token}` };
+    const base = `/api/portal?guild=${encodeURIComponent(guildID)}&raid=${encodeURIComponent(raid.id)}`;
+    const [dropResponse, memberResponse] = await Promise.all([
+      fetch(`${base}&view=drops`, { headers, cache: 'no-store' }),
+      fetch(`${base}&view=members`, { headers, cache: 'no-store' }),
+    ]);
+    const drops = await dropResponse.json(); const members = await memberResponse.json();
+    if (!dropResponse.ok || !memberResponse.ok) throw new Error('Could not load raid details.');
+    document.querySelector('#drop-count').textContent = `${drops.drops?.length ?? 0} records`;
+    document.querySelector('#member-count').textContent = `${members.members?.length ?? 0} players`;
+    renderDetailList(dropList, drops.drops ?? [], (drop) => [drop.item_name, drop.boss || 'Boss not recorded', drop.winner ? `Awarded to ${drop.winner}` : 'Unawarded']);
+    renderDetailList(memberList, members.members ?? [], (member) => [member.name, member.class || 'Class not recorded', member.present ? 'Present' : 'Absent']);
+    document.querySelector('#detail-message').textContent = '';
+    if (!drops.drops?.length && !members.members?.length) document.querySelector('#detail-message').textContent = 'No loot or roster records have been captured for this raid yet.';
+  } catch (error) { document.querySelector('#detail-message').textContent = error.message; document.querySelector('#detail-message').className = 'message error'; }
+}
+
+function renderDetailList(container, rows, fields) {
+  for (const row of rows) {
+    const item = document.createElement('div'); item.className = 'detail-row';
+    item.innerHTML = '<strong></strong><span></span><em></em>';
+    const values = fields(row); item.querySelector('strong').textContent = values[0]; item.querySelector('span').textContent = values[1]; item.querySelector('em').textContent = values[2]; container.append(item);
   }
 }
 
@@ -117,6 +157,7 @@ document.querySelector('#back-to-guilds').addEventListener('click', () => {
   dashboard.hidden = true;
   signedIn.hidden = false;
 });
+document.querySelector('#back-to-dashboard').addEventListener('click', () => { raidDetail.hidden = true; dashboard.hidden = false; });
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();

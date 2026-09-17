@@ -56,6 +56,17 @@
           <div id="raid-list" class="raid-list"></div>
           <p id="dashboard-message" class="message" role="status" aria-live="polite"></p>
         </div>
+        <div id="raid-detail" hidden>
+          <button id="back-to-dashboard" class="back" type="button">← Raid archive</button>
+          <p class="eyebrow">RAID DETAIL</p>
+          <h2 id="detail-title">Raid</h2>
+          <p id="detail-meta" class="muted"></p>
+          <div class="detail-grid">
+            <section><div class="section-heading"><p class="eyebrow">LOOT</p><span id="drop-count">0 records</span></div><div id="drop-list" class="detail-list"></div></section>
+            <section><div class="section-heading"><p class="eyebrow">ROSTER</p><span id="member-count">0 players</span></div><div id="member-list" class="detail-list"></div></section>
+          </div>
+          <p id="detail-message" class="message" role="status" aria-live="polite"></p>
+        </div>
       </section>
     </main>
     <script type="module" src="/app.js"></script>
