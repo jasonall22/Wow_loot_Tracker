@@ -27,11 +27,66 @@ export async function parseUploadBody(request) {
   let body;
   try { body = JSON.parse(text); } catch { throw badRequest(); }
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw badRequest();
-  const required = ['requestId', 'sourceKey', 'sourceRevision', 'payloadHash', 'capturedAt'];
-  if (required.some(key => !Object.hasOwn(body, key))) throw badRequest();
+  const required = ['requestId', 'sourceKey', 'sourceRevision', 'payloadHash', 'capturedAt', 'raid', 'drops', 'members'];
+  if (required.some(key => !Object.hasOwn(body, key)) || Object.keys(body).some(key => !required.includes(key))) throw badRequest();
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.requestId) ||
       typeof body.sourceKey !== 'string' || body.sourceKey.length < 1 || body.sourceKey.length > 200 ||
       !Number.isSafeInteger(body.sourceRevision) || body.sourceRevision < 0 ||
       !/^[a-f0-9]{64}$/.test(body.payloadHash) || !Number.isFinite(Date.parse(body.capturedAt))) throw badRequest();
+  validateUploadRecords(body);
+  if (digestPayload(body) !== body.payloadHash) throw badRequest();
   return body;
+}
+
+const exact = (value, keys) => value && typeof value === 'object' && !Array.isArray(value) &&
+  Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
+const bounded = (value, min, max) => typeof value === 'string' && value.length >= min && value.length <= max;
+const stamp = value => bounded(value, 1, 40) && Number.isFinite(Date.parse(value));
+const optionalStamp = value => value === null || stamp(value);
+
+export function canonicalJSON(value) {
+  if (Array.isArray(value)) return '[' + value.map(canonicalJSON).join(',') + ']';
+  if (value && typeof value === 'object') return '{' + Object.keys(value).sort().map(key => JSON.stringify(key) + ':' + canonicalJSON(value[key])).join(',') + '}';
+  return JSON.stringify(value);
+}
+
+export function digestPayload({ raid, drops, members }) {
+  return createHash('sha256').update(canonicalJSON({ raid, drops, members }), 'utf8').digest('hex');
+}
+
+export function validateUploadRecords(body) {
+  const { raid, drops, members } = body;
+  if (!exact(raid, ['name', 'runId', 'createdAt', 'closedAt']) ||
+      !bounded(raid.name, 1, 300) || !bounded(raid.runId, 1, 200) ||
+      !stamp(raid.createdAt) || !optionalStamp(raid.closedAt) ||
+      (raid.closedAt !== null && Date.parse(raid.closedAt) < Date.parse(raid.createdAt)) ||
+      !Array.isArray(drops) || drops.length > 500 || !Array.isArray(members) || members.length > 200) throw badRequest();
+  const dropIDs = new Set();
+  for (const drop of drops) {
+    if (!exact(drop, ['id', 'itemId', 'itemName', 'boss', 'droppedAt', 'winner', 'awardType', 'awardedAt', 'awardNote']) ||
+        !bounded(drop.id, 1, 200) || dropIDs.has(drop.id) ||
+        (drop.itemId !== null && (!Number.isSafeInteger(drop.itemId) || drop.itemId < 1 || drop.itemId > 10_000_000)) ||
+        !bounded(drop.itemName, 1, 300) || !bounded(drop.boss, 0, 200) || !stamp(drop.droppedAt) ||
+        (drop.winner !== null && !bounded(drop.winner, 1, 200)) ||
+        (drop.awardType !== null && !['MS', 'OS', 'DE', 'GB', 'UNKNOWN'].includes(drop.awardType)) ||
+        !optionalStamp(drop.awardedAt) || !bounded(drop.awardNote, 0, 2000) ||
+        (drop.awardType === null && (drop.winner !== null || drop.awardedAt !== null)) ||
+        (drop.awardType !== null && drop.awardedAt === null)) throw badRequest();
+    dropIDs.add(drop.id);
+  }
+  const memberIDs = new Set();
+  for (const member of members) {
+    if (!exact(member, ['characterKey', 'name', 'class', 'raidGroup', 'present', 'visits']) ||
+        !bounded(member.characterKey, 1, 200) || memberIDs.has(member.characterKey) ||
+        !bounded(member.name, 1, 200) || !bounded(member.class, 0, 30) ||
+        !Number.isSafeInteger(member.raidGroup) || member.raidGroup < 0 || member.raidGroup > 8 ||
+        typeof member.present !== 'boolean' || !Array.isArray(member.visits) || member.visits.length > 100) throw badRequest();
+    memberIDs.add(member.characterKey);
+    const starts = new Set();
+    for (const visit of member.visits) {
+      if (!exact(visit, ['joinedAt', 'leftAt']) || !stamp(visit.joinedAt) || !optionalStamp(visit.leftAt) ||
+          starts.has(visit.joinedAt) || (visit.leftAt !== null && Date.parse(visit.leftAt) < Date.parse(visit.joinedAt))) throw badRequest();
+      starts.add(visit.joinedAt);
+    }
+  }
 }

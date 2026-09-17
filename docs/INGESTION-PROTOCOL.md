@@ -1,14 +1,16 @@
-# Companion ingestion protocol — design gate
+# Companion ingestion protocol
 
-This document describes the next upload milestone. It is a contract draft, not an
-enabled endpoint. The existing companion remains local-only until this protocol is
-implemented and tested.
+The pairing flow and atomic upload database function are implemented. The upload
+API and manual bridge adapter are in the source tree, but the bridge upload
+control remains disabled until the API deployment and a synthetic end-to-end
+check pass. No real raid data has been uploaded.
 
 ## Current bridge boundary
 
 The companion captures and validates optical-strip data locally, persists bounded
 snapshots in its local data directory, and serves its browser UI on `127.0.0.1:8765`.
-It does not upload data, accept cloud credentials, or start a cloud connection.
+It stores one device credential after explicit pairing. Capture stays local; the
+manual upload control is currently gated off.
 
 ## Required connection flow
 
@@ -49,4 +51,5 @@ No upload handler is complete until this behavior has database tests.
 4. Add an opt-in companion upload adapter without changing the existing local capture
    path, then test it against a disposable guild and synthetic snapshots.
 
-No real raid data should be uploaded until all four stages pass.
+No real raid data should be uploaded until all four stages pass, including a
+synthetic request through the deployed API and a manual bridge upload test.
