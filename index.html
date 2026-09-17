@@ -38,7 +38,10 @@
           <button id="sign-out" class="secondary" type="button">Sign out</button>
         </div>
         <div id="dashboard" hidden>
-          <img class="logo dashboard-logo" src="/assets/apoc-logo.png" alt="APOC crest">
+          <div class="dashboard-topbar">
+            <img class="logo dashboard-logo" src="/assets/apoc-logo.png" alt="APOC crest">
+            <button id="create-pairing" class="pairing-trigger" type="button" hidden>Connection code</button>
+          </div>
           <button id="back-to-guilds" class="back" type="button">← Your guilds</button>
           <div class="dashboard-heading">
             <div>
@@ -47,7 +50,6 @@
               <p id="dashboard-subtitle" class="muted"></p>
             </div>
             <div class="dashboard-actions">
-              <button id="create-pairing" class="pairing-trigger" type="button" hidden>Connection code</button>
               <span id="dashboard-role" class="role-pill"></span>
             </div>
           </div>
@@ -66,7 +68,10 @@
           </div>
         </div>
         <div id="raid-detail" hidden>
-          <button id="back-to-dashboard" class="back" type="button">← Raid archive</button>
+          <div class="raid-detail-toolbar">
+            <button id="back-to-dashboard" class="back" type="button">← Raid archive</button>
+            <button id="manage-raid" class="secondary compact-button" type="button" hidden>Manage raid</button>
+          </div>
           <p class="eyebrow">RAID DETAIL</p>
           <h2 id="detail-title">Raid</h2>
           <p id="detail-meta" class="muted"></p>
@@ -87,6 +92,35 @@
             <p id="pairing-expiry" class="muted"></p>
             <button id="copy-pairing" type="button">Copy code</button>
           </div>
+        </dialog>
+        <dialog id="raid-dialog" class="pairing-dialog edit-dialog" aria-labelledby="raid-dialog-title">
+          <button id="close-raid-dialog" class="dialog-close" type="button" aria-label="Close raid management">×</button>
+          <p class="eyebrow">RAID ADMINISTRATION</p>
+          <h2 id="raid-dialog-title">Manage raid</h2>
+          <label for="raid-name">Raid name</label>
+          <input id="raid-name" maxlength="300" required>
+          <p id="raid-dialog-message" class="message" role="status"></p>
+          <button id="save-raid-name" type="button">Save name</button>
+          <button id="delete-raid" class="danger-button" type="button">Delete raid</button>
+          <p class="muted edit-hint">Deleting hides the raid from the archive. Its audit history is retained, and bridge uploads will not restore it.</p>
+        </dialog>
+        <dialog id="award-dialog" class="pairing-dialog edit-dialog" aria-labelledby="award-dialog-title">
+          <button id="close-award-dialog" class="dialog-close" type="button" aria-label="Close award editor">×</button>
+          <p class="eyebrow">LOOT CORRECTION</p>
+          <h2 id="award-dialog-title">Edit award</h2>
+          <p id="award-item" class="muted"></p>
+          <label for="award-winner">Recipient</label>
+          <input id="award-winner" maxlength="200" placeholder="Character name">
+          <label for="award-type">Award type</label>
+          <select id="award-type">
+            <option value="">Unawarded</option><option value="MS">Main spec (MS)</option>
+            <option value="OS">Off spec (OS)</option><option value="DE">Disenchant (DE)</option>
+            <option value="GB">Guild bank (GB)</option><option value="UNKNOWN">Other / unknown</option>
+          </select>
+          <label for="award-note">Note (optional)</label>
+          <textarea id="award-note" maxlength="2000" rows="3"></textarea>
+          <p id="award-dialog-message" class="message" role="status"></p>
+          <button id="save-award" type="button">Save correction</button>
         </dialog>
         <div id="item-tooltip" class="item-tooltip" role="tooltip" hidden></div>
       </section>

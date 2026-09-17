@@ -2,7 +2,7 @@ import { forbidden, unauthorized, badRequest } from './errors.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ROLES = new Set(['admin', 'officer', 'member']);
-export const ACTIONS = Object.freeze(['viewRaids', 'viewComparisons', 'editRecords', 'uploadRaids', 'manageMembers']);
+export const ACTIONS = Object.freeze(['viewRaids', 'viewComparisons', 'editRecords', 'uploadRaids', 'manageMembers', 'manageRaids']);
 
 export function validID(value) {
   return typeof value === 'string' && UUID.test(value);
@@ -28,6 +28,7 @@ export function permissionsFor(principal, membership, guildID) {
     editRecords: admin || (officer && membership.can_edit === true),
     uploadRaids: admin || membership.can_upload === true,
     manageMembers: admin,
+    manageRaids: admin,
   };
 }
 

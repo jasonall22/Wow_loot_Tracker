@@ -6,6 +6,8 @@ import { Script, createContext } from 'node:vm';
 class Element {
   constructor() {
     this.hidden = false;
+    this.open = false;
+    this.value = '';
     this.children = [];
     this.listeners = {};
     this.parts = {};
@@ -25,6 +27,8 @@ class Element {
   removeAttribute() {}
   getBoundingClientRect() { return { left: 30, right: 210, top: 40, bottom: 80 }; }
   focus() {}
+  showModal() { this.open = true; }
+  close() { this.open = false; this.listeners.close?.(); }
 }
 
 test('an open raid detail refreshes a removed drop without a user click', async () => {
@@ -34,14 +38,17 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   const storage = new Map([['apoc_session', JSON.stringify({ access_token: 'test-access-token', expires_at: 4102444800 })]]);
   const intervals = [];
   let dropReads = 0;
-  const fetch = async (input) => {
+  let deleted = false;
+  let corrected = false;
+  const adminActions = [];
+  const fetch = async (input, options = {}) => {
     const url = new URL(input, 'https://portal.example');
     const view = url.searchParams.get('view');
-    if (view === 'guilds') return Response.json({ guilds: [{ guild: { id: 'guild-1', name: 'APOC' }, membership: { role: 'admin' }, permissions: { uploadRaids: true } }] });
-    if (view === 'raids') return Response.json({ raids: [{ id: 'raid-1', name: 'Tonight', revision: 2 }] });
+    if (view === 'guilds') return Response.json({ guilds: [{ guild: { id: 'guild-1', name: 'APOC' }, membership: { role: 'admin' }, permissions: { uploadRaids: true, manageRaids: true } }] });
+    if (view === 'raids') return Response.json({ raids: deleted ? [] : [{ id: 'raid-1', name: 'Tonight', revision: 2 }] });
     if (view === 'drops') {
       dropReads += 1;
-      const drops = [{ item_id: 32336, item_name: 'Kept', boss: 'Boss' }];
+      const drops = [{ id: 'drop-1', item_id: 32336, item_name: 'Kept', boss: 'Boss', winner: corrected ? 'Player' : null, award_type: corrected ? 'MS' : null }];
       if (dropReads === 1) drops.push({ item_name: 'Removed', boss: 'Boss' });
       return Response.json({ drops });
     }
@@ -49,6 +56,12 @@ test('an open raid detail refreshes a removed drop without a user click', async 
     if (url.pathname === '/api/item') return Response.json({ itemID: 32336, lines: [
       [{ text: 'Kept', quality: 'q4' }], [{ text: '+20 Strength', quality: 'q2' }],
     ] });
+    if (url.pathname === '/api/admin') {
+      const body = JSON.parse(options.body); adminActions.push(body);
+      if (body.action === 'delete_raid') deleted = true;
+      if (body.action === 'edit_drop') corrected = true;
+      return Response.json({ status: 'ok', name: body.name ?? null });
+    }
     throw new Error(`unexpected request: ${input}`);
   };
   const document = {
@@ -58,7 +71,7 @@ test('an open raid detail refreshes a removed drop without a user click', async 
     addEventListener() {},
   };
   const context = createContext({
-    document, fetch, Response, URL, AbortController, Date, JSON, window: { innerWidth: 1000, innerHeight: 800 },
+    document, fetch, Response, URL, AbortController, Date, JSON, window: { innerWidth: 1000, innerHeight: 800, confirm: () => true },
     sessionStorage: {
       getItem: (key) => storage.get(key) ?? null,
       setItem: (key, value) => storage.set(key, value),
@@ -90,6 +103,28 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   assert.equal(get('#drop-count').textContent, '1 records');
   assert.equal(get('#drop-list').children.length, 1);
   assert.equal(get('#item-tooltip').hidden, true);
+  get('#manage-raid').listeners.click();
+  get('#raid-name').value = 'Renamed raid';
+  await get('#save-raid-name').listeners.click();
+  assert.equal(get('#detail-title').textContent, 'Renamed raid');
+  get('#drop-list').children[0].children.at(-1).listeners.click();
+  get('#award-winner').value = 'Player';
+  get('#award-type').value = 'MS';
+  await get('#save-award').listeners.click();
+  assert.equal(adminActions.at(-1).action, 'edit_drop');
+  assert.equal(get('#drop-list').children[0].children[2].textContent, 'Awarded to Player · MS');
+  get('#manage-raid').listeners.click();
+  await get('#delete-raid').listeners.click();
+  assert.equal(adminActions.at(-1).action, 'delete_raid');
+  assert.equal(get('#raid-count').textContent, 0);
+  assert.equal(get('#raid-detail').hidden, true);
+});
+
+test('connection button sits in the same full-width header row as the crest', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+  assert.match(html, /class="dashboard-topbar"[\s\S]*dashboard-logo[\s\S]*id="create-pairing"[\s\S]*<\/div>/);
+  assert.match(css, /\.dashboard-topbar\s*\{[^}]*justify-content:\s*space-between/);
 });
 
 test('live portal refreshes the signed-in session before polling', async () => {

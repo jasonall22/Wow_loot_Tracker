@@ -94,11 +94,11 @@ export function createSupabaseBackend({ config, fetchImpl = globalThis.fetch, no
       return result[0] ?? null;
     },
     async raids(guildID, token, { limit, offset }) {
-      return rows('apoc_raids', SELECT.raid, { guild_id: `eq.${guildID}` }, token,
+      return rows('apoc_raids', SELECT.raid, { guild_id: `eq.${guildID}`, deleted_at: 'is.null' }, token,
         { order: 'created_at.desc,id.asc', limit: String(limit), offset: String(offset) });
     },
     async raid(guildID, raidID, token) {
-      const result = await rows('apoc_raids', SELECT.raid, { guild_id: `eq.${guildID}`, id: `eq.${raidID}` }, token, { limit: '2' });
+      const result = await rows('apoc_raids', SELECT.raid, { guild_id: `eq.${guildID}`, id: `eq.${raidID}`, deleted_at: 'is.null' }, token, { limit: '2' });
       if (result.length > 1) throw unavailable();
       return result[0] ?? null;
     },

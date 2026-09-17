@@ -16,6 +16,8 @@ button { width: 100%; border: 0; border-radius: 10px; background: #78d7bb; color
 .dashboard-logo { width: 58px; height: 58px; margin: -8px 0 18px; }.back { width: auto; padding: 0; margin: 0 0 34px; background: transparent; color: #78d7bb; font-size: 12px; text-align: left; }.dashboard-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }.dashboard-heading .muted { margin-bottom: 0; }.role-pill { border: 1px solid #3b5e5b; color: #78d7bb; border-radius: 99px; font-size: 11px; font-weight: 800; padding: 6px 10px; text-transform: uppercase; }.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 28px 0 32px; }.metrics div { background: #172336; border: 1px solid #2d3b4f; border-radius: 12px; padding: 14px; }.metrics span { display: block; color: #8d9bad; font-size: 10px; font-weight: 800; letter-spacing: .13em; }.metrics strong { display: block; font-size: 24px; margin-top: 7px; }.section-heading { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid #2d3b4f; padding-bottom: 12px; }.section-heading .eyebrow { margin: 0; }.section-heading span { color: #8d9bad; font-size: 11px; }.raid-list { display: grid; }.raid-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #263449; padding: 16px 0; }.raid-row strong, .raid-row span { display: block; }.raid-row strong { font-size: 14px; }.raid-row span { color: #8d9bad; font-size: 11px; margin-top: 5px; }.raid-row > b { color: #78d7bb; font-size: 17px; }
 .raid-row { cursor: pointer; }.raid-row:focus-visible { outline: 2px solid var(--wow-gold); outline-offset: 4px; }.detail-grid { display: grid; gap: 28px; margin-top: 28px; }.detail-list { display: grid; }.detail-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 13px 0; border-bottom: 1px solid #263449; }.detail-row strong { font-size: 13px; }.detail-row span { color: #8d9bad; font-size: 11px; }.detail-row em { grid-column: 1 / -1; color: var(--wow-gold-bright); font-size: 11px; font-style: normal; }
 .dashboard-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; }
+.dashboard-topbar { width: 100%; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.dashboard-topbar .dashboard-logo { margin: -8px 0 0; }
 .pairing-trigger { width: auto; margin: 0; padding: 10px 16px; white-space: nowrap; }
 .pairing-dialog { width: min(480px, calc(100% - 32px)); max-height: calc(100vh - 32px); overflow: auto; padding: 32px; border: 1px solid var(--wow-bronze); border-radius: 20px; background: var(--wow-panel); color: #f6f7fb; box-shadow: 0 30px 100px rgba(0,0,0,.6); }
 .pairing-dialog::backdrop { background: rgba(3, 7, 13, .76); backdrop-filter: blur(3px); }
@@ -85,3 +87,16 @@ input:focus { border-color: var(--wow-gold); box-shadow: 0 0 0 3px rgba(223, 173
 .item-tooltip .q4 { color: #cf91ff; }
 .item-tooltip .q5 { color: #ff8000; }
 .item-tooltip .q6, .item-tooltip .q7 { color: #e6cc80; }
+
+.raid-detail-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.compact-button { width: auto; margin: 0; padding: 10px 16px; }
+.edit-dialog { width: min(520px, calc(100% - 32px)); }
+.edit-dialog input, .edit-dialog select, .edit-dialog textarea { width: 100%; border: 1px solid #4c4b49; border-radius: 10px; background: #0e1521; color: #fff; padding: 13px 14px; font: inherit; }
+.edit-dialog select:focus, .edit-dialog textarea:focus { outline: 2px solid var(--wow-gold); }
+.edit-dialog .message { margin: 14px 0 0; }
+.edit-hint { margin: 12px 0 0; font-size: 12px; }
+.danger-button { background: #4b2323; color: #ffe3df; border: 1px solid #a46565; }
+.danger-button:hover { background: #653030; }
+.drop-edit { width: auto; grid-column: 2; grid-row: 2; justify-self: end; margin: 0; padding: 6px 10px; color: var(--wow-gold-bright); font-size: 11px; }
+.loot-row > em { grid-column: 1; }
+@media (max-width: 600px) { .dashboard-topbar { align-items: center; } .pairing-trigger { max-width: 60%; white-space: normal; } }

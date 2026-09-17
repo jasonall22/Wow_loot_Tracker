@@ -90,6 +90,13 @@ test('ambiguous membership data fails closed', async () => {
   const { backend } = setup([Response.json([membership, membership])]);
   await assert.rejects(backend.membership(principal, GUILD, token()), { status: 503 });
 });
+test('raid reads exclude archived raids and project persistent display names', async () => {
+  const { backend, calls } = setup([Response.json([{ guild_id: GUILD, id: RAID, name: 'Bridge name', display_name: 'Admin name' }])]);
+  const raids = await backend.raids(GUILD, token(), { limit: 50, offset: 0 });
+  assert.equal(calls[0].url.searchParams.get('deleted_at'), 'is.null');
+  assert.ok(calls[0].url.searchParams.get('select').includes('display_name'));
+  assert.equal(raids[0].display_name, 'Admin name');
+});
 for (const method of ['drops', 'members', 'visits', 'comparisons']) test(`${method} query includes both guild and raid, bounded pagination, and no wildcard select`, async () => {
   const { backend, calls } = setup([Response.json([])]);
   await backend[method](GUILD, RAID, token(), { limit: 50, offset: 10 });

@@ -13,10 +13,14 @@ const pairingDialog = document.querySelector('#pairing-dialog');
 const pairingResult = document.querySelector('#pairing-result');
 const pairingCode = document.querySelector('#pairing-code');
 const pairingMessage = document.querySelector('#pairing-message');
+const raidDialog = document.querySelector('#raid-dialog');
+const awardDialog = document.querySelector('#award-dialog');
 let pairingRequest = null;
 let selectedGuildID = null;
 let guilds = [];
 let activeRaid = null;
+let editingDrop = null;
+let canManageRaids = false;
 let refreshPromise = null;
 let refreshingView = false;
 let raidArchiveSignature = '';
@@ -128,9 +132,12 @@ function saveSession(session) {
 }
 
 function sessionExpired() {
+  if (raidDialog.open) raidDialog.close();
+  if (awardDialog.open) awardDialog.close();
   state.session = null;
   activeRaid = null;
   selectedGuildID = null;
+  canManageRaids = false;
   sessionStorage.removeItem('apoc_session');
   sessionStorage.removeItem('apoc_access_token');
   signedIn.hidden = true;
@@ -172,6 +179,17 @@ async function portalFetch(url, options = {}) {
   return response;
 }
 
+async function adminEdit(action, fields = {}) {
+  if (!activeRaid || !canManageRaids) throw new Error('Admin access is required.');
+  const response = await portalFetch('/api/admin', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ guild: activeRaid.guildID, raid: activeRaid.raid.id, action, ...fields }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error?.message ?? 'Could not save the change.');
+  return data;
+}
+
 async function loadGuilds() {
   const response = await portalFetch('/api/portal?view=guilds');
   const data = await response.json().catch(() => ({}));
@@ -203,10 +221,13 @@ async function loadGuilds() {
 
 async function openDashboard(entry) {
   if (pairingDialog.open) pairingDialog.close();
+  if (raidDialog.open) raidDialog.close();
+  if (awardDialog.open) awardDialog.close();
   const details = entry.guild ?? {};
   const membership = entry.membership ?? {};
   selectedGuildID = details.id;
   activeRaid = null;
+  canManageRaids = entry.permissions?.manageRaids === true;
   raidArchiveSignature = '';
   shell.classList.add('workspace-view');
   signedIn.hidden = true;
@@ -235,7 +256,7 @@ async function loadRaidArchive(guildID, quiet = false) {
     dashboardMessage.textContent = '';
     dashboardMessage.className = 'message';
     if (!raids.length) dashboardMessage.textContent = 'No raids have been recorded for this guild yet.';
-    const signature = JSON.stringify(raids.map((raid) => [raid.id, raid.name, raid.revision, raid.created_at]));
+    const signature = JSON.stringify(raids.map((raid) => [raid.id, raid.name, raid.revision, raid.created_at, raid.updated_at]));
     if (signature === raidArchiveSignature) return;
     raidArchiveSignature = signature;
     raidList.replaceChildren();
@@ -326,6 +347,7 @@ async function openRaidDetail(raid, guildID) {
   raidDetailSignature = '';
   dashboard.hidden = true;
   raidDetail.hidden = false;
+  document.querySelector('#manage-raid').hidden = !canManageRaids;
   document.querySelector('#detail-title').textContent = raid.name ?? 'Raid';
   document.querySelector('#detail-meta').textContent = raid.created_at ? new Date(raid.created_at).toLocaleString() : 'Date unavailable';
   const dropList = document.querySelector('#drop-list');
@@ -411,10 +433,90 @@ function renderDropList(container, drops) {
     }
     const label = document.createElement('strong'); label.textContent = name; title.append(label);
     const boss = document.createElement('span'); boss.textContent = drop.boss || 'Boss not recorded';
-    const award = document.createElement('em'); award.textContent = drop.winner ? `Awarded to ${drop.winner}` : 'Unawarded';
-    item.append(title, boss, award); container.append(item);
+    const award = document.createElement('em');
+    award.textContent = drop.winner ? `Awarded to ${drop.winner}${drop.award_type ? ` · ${drop.award_type}` : ''}` : drop.award_type || 'Unawarded';
+    item.append(title, boss, award);
+    if (canManageRaids && drop.id) {
+      const edit = document.createElement('button');
+      edit.className = 'drop-edit secondary'; edit.type = 'button'; edit.textContent = 'Edit award';
+      edit.setAttribute('aria-label', `Edit award for ${name}`);
+      edit.addEventListener('click', () => {
+        editingDrop = drop;
+        document.querySelector('#award-item').textContent = name;
+        document.querySelector('#award-winner').value = drop.winner ?? '';
+        document.querySelector('#award-type').value = drop.award_type ?? '';
+        document.querySelector('#award-note').value = drop.award_note ?? '';
+        document.querySelector('#award-dialog-message').textContent = '';
+        awardDialog.showModal();
+      });
+      item.append(edit);
+    }
+    container.append(item);
   }
 }
+
+document.querySelector('#manage-raid').addEventListener('click', () => {
+  if (!activeRaid || !canManageRaids) return;
+  document.querySelector('#raid-name').value = activeRaid.raid.name ?? '';
+  document.querySelector('#raid-dialog-message').textContent = '';
+  raidDialog.showModal();
+});
+document.querySelector('#close-raid-dialog').addEventListener('click', () => raidDialog.close());
+document.querySelector('#close-award-dialog').addEventListener('click', () => awardDialog.close());
+awardDialog.addEventListener('close', () => { editingDrop = null; });
+
+document.querySelector('#save-raid-name').addEventListener('click', async () => {
+  const button = document.querySelector('#save-raid-name');
+  const notice = document.querySelector('#raid-dialog-message');
+  button.disabled = true;
+  try {
+    const name = document.querySelector('#raid-name').value.trim();
+    if (!name) throw new Error('Enter a raid name.');
+    await adminEdit('rename_raid', { name });
+    activeRaid.raid.name = name;
+    document.querySelector('#detail-title').textContent = name;
+    raidArchiveSignature = '';
+    raidDialog.close();
+  } catch (error) { notice.textContent = error.message; notice.className = 'message error'; }
+  finally { button.disabled = false; }
+});
+
+document.querySelector('#delete-raid').addEventListener('click', async () => {
+  if (!activeRaid || !window.confirm(`Delete “${activeRaid.raid.name}” from the raid archive? Its audit history will remain.`)) return;
+  const button = document.querySelector('#delete-raid');
+  const notice = document.querySelector('#raid-dialog-message');
+  button.disabled = true;
+  try {
+    const guildID = activeRaid.guildID;
+    await adminEdit('delete_raid');
+    raidDialog.close();
+    activeRaid = null;
+    raidDetail.hidden = true;
+    dashboard.hidden = false;
+    raidArchiveSignature = '';
+    await loadRaidArchive(guildID);
+  } catch (error) { notice.textContent = error.message; notice.className = 'message error'; }
+  finally { button.disabled = false; }
+});
+
+document.querySelector('#save-award').addEventListener('click', async () => {
+  if (!editingDrop || !activeRaid) return;
+  const button = document.querySelector('#save-award');
+  const notice = document.querySelector('#award-dialog-message');
+  button.disabled = true;
+  try {
+    const winner = document.querySelector('#award-winner').value.trim() || null;
+    const awardType = document.querySelector('#award-type').value || null;
+    const awardNote = document.querySelector('#award-note').value;
+    if (!awardType && winner) throw new Error('Choose an award type or clear the recipient.');
+    if (['MS', 'OS'].includes(awardType) && !winner) throw new Error('Enter the recipient for MS or OS loot.');
+    await adminEdit('edit_drop', { dropId: editingDrop.id, winner, awardType, awardNote });
+    awardDialog.close();
+    raidDetailSignature = '';
+    await loadRaidDetail(activeRaid.raid, activeRaid.guildID);
+  } catch (error) { notice.textContent = error.message; notice.className = 'message error'; }
+  finally { button.disabled = false; }
+});
 
 function showSignedIn() {
   signedOut.hidden = true;
@@ -451,9 +553,12 @@ form.addEventListener('submit', async (event) => {
 
 document.querySelector('#sign-out').addEventListener('click', () => {
   if (pairingDialog.open) pairingDialog.close();
+  if (raidDialog.open) raidDialog.close();
+  if (awardDialog.open) awardDialog.close();
   state.session = null;
   activeRaid = null;
   selectedGuildID = null;
+  canManageRaids = false;
   sessionStorage.removeItem('apoc_session');
   sessionStorage.removeItem('apoc_access_token');
   signedIn.hidden = true;
