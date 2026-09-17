@@ -34,3 +34,16 @@ input { background: #0e1521; border-color: #4c4b49; }
 input:focus { border-color: var(--wow-gold); box-shadow: 0 0 0 3px rgba(223, 173, 85, .15); }
 .muted, .raid-row span, .section-heading span { color: var(--wow-muted); }
 .secondary { background: transparent; color: var(--wow-ivory); border-color: #4c4b49; }
+
+/* Signed-in workspaces use the viewport; the landing and guild picker keep their split layout. */
+.shell.workspace-view { width: 100%; min-height: 100vh; margin: 0; padding: clamp(16px, 2vw, 48px); display: block; }
+.shell.workspace-view .brand-panel { display: none; }
+.shell.workspace-view .card { width: 100%; min-height: calc(100vh - 2 * clamp(16px, 2vw, 48px)); padding: clamp(24px, 3vw, 56px); }
+.dashboard-content { display: grid; grid-template-columns: minmax(300px, .9fr) minmax(400px, 1.4fr); gap: clamp(24px, 4vw, 72px); align-items: start; margin-top: 36px; }
+.dashboard-content .metrics { margin-top: 0; }
+.dashboard-content .pairing-panel { margin-bottom: 0; }
+.shell.workspace-view .detail-grid { grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: clamp(24px, 4vw, 72px); }
+@media (max-width: 900px) {
+  .dashboard-content, .shell.workspace-view .detail-grid { grid-template-columns: 1fr; }
+  .shell.workspace-view .card { min-height: calc(100vh - 32px); }
+}

@@ -1,4 +1,5 @@
 const state = { config: null, session: null };
+const shell = document.querySelector('.shell');
 const signedOut = document.querySelector('#signed-out');
 const signedIn = document.querySelector('#signed-in');
 const dashboard = document.querySelector('#dashboard');
@@ -74,6 +75,7 @@ async function openDashboard(entry) {
   const details = entry.guild ?? {};
   const membership = entry.membership ?? {};
   selectedGuildID = details.id;
+  shell.classList.add('workspace-view');
   signedIn.hidden = true;
   dashboard.hidden = false;
   document.querySelector('#dashboard-title').textContent = details.name ?? 'Guild';
@@ -186,6 +188,7 @@ function showSignedIn() {
 document.querySelector('#back-to-guilds').addEventListener('click', () => {
   dashboard.hidden = true;
   signedIn.hidden = false;
+  shell.classList.remove('workspace-view');
 });
 document.querySelector('#back-to-dashboard').addEventListener('click', () => { raidDetail.hidden = true; dashboard.hidden = false; });
 
@@ -213,6 +216,7 @@ document.querySelector('#sign-out').addEventListener('click', () => {
   sessionStorage.removeItem('apoc_access_token');
   signedIn.hidden = true;
   signedOut.hidden = false;
+  shell.classList.remove('workspace-view');
   form.reset();
 });
 
