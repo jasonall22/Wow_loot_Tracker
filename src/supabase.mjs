@@ -103,7 +103,7 @@ export function createSupabaseBackend({ config, fetchImpl = globalThis.fetch, no
       return result[0] ?? null;
     },
     async drops(guildID, raidID, token, paging) {
-      return rows('apoc_drops', SELECT.drop, { guild_id: `eq.${guildID}`, raid_id: `eq.${raidID}` }, token,
+      return rows('apoc_drops', SELECT.drop, { guild_id: `eq.${guildID}`, raid_id: `eq.${raidID}`, source_present: 'eq.true' }, token,
         { order: 'dropped_at.asc,id.asc', limit: String(paging.limit), offset: String(paging.offset) });
     },
     async members(guildID, raidID, token, paging) {

@@ -96,6 +96,7 @@ for (const method of ['drops', 'members', 'visits', 'comparisons']) test(`${meth
   const { url, init } = calls[0];
   assert.equal(url.searchParams.get('guild_id'), `eq.${GUILD}`);
   assert.equal(url.searchParams.get('raid_id'), `eq.${RAID}`);
+  assert.equal(url.searchParams.get('source_present'), method === 'drops' ? 'eq.true' : null);
   assert.equal(url.searchParams.get('limit'), '50');
   assert.equal(url.searchParams.get('offset'), '10');
   assert.ok(!url.searchParams.get('select').includes('*'));
