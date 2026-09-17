@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0c111b">
+    <title>APOC Raid Portal</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="brand-panel">
+        <p class="eyebrow">APOC · RAID OPERATIONS</p>
+        <h1>Loot decisions,<br><span>kept in view.</span></h1>
+        <p class="intro">A private guild portal for live awards, attendance, raid history and accountable officer workflows.</p>
+        <div class="status"><span class="dot"></span> Secure guild access</div>
+      </section>
+      <section class="card" aria-labelledby="page-title">
+        <div class="card-mark">A</div>
+        <div id="signed-out">
+          <p class="eyebrow">MEMBER ACCESS</p>
+          <h2 id="page-title">Sign in to your guild</h2>
+          <p class="muted">Use the email address invited to your APOC guild.</p>
+          <form id="sign-in-form">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" autocomplete="email" required>
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+            <button type="submit">Sign in <span>→</span></button>
+          </form>
+          <p id="message" class="message" role="status" aria-live="polite"></p>
+        </div>
+        <div id="signed-in" hidden>
+          <p class="eyebrow">YOUR GUILDS</p>
+          <h2>Choose a guild</h2>
+          <p class="muted">Your access is checked against current membership.</p>
+          <div id="guild-list" class="guild-list"></div>
+          <button id="sign-out" class="secondary" type="button">Sign out</button>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
