@@ -10,6 +10,9 @@ class Element {
     this.listeners = {};
     this.parts = {};
     this.textContent = '';
+    this.style = {};
+    this.offsetWidth = 240;
+    this.offsetHeight = 100;
     this.classList = { add() {}, remove() {} };
   }
   addEventListener(type, handler) { this.listeners[type] = handler; }
@@ -19,6 +22,8 @@ class Element {
   set innerHTML(value) { this.html = value; this.parts = {}; }
   get innerHTML() { return this.html; }
   setAttribute() {}
+  removeAttribute() {}
+  getBoundingClientRect() { return { left: 30, top: 40, bottom: 80 }; }
   focus() {}
 }
 
@@ -36,11 +41,12 @@ test('an open raid detail refreshes a removed drop without a user click', async 
     if (view === 'raids') return Response.json({ raids: [{ id: 'raid-1', name: 'Tonight', revision: 2 }] });
     if (view === 'drops') {
       dropReads += 1;
-      const drops = [{ item_name: 'Kept', boss: 'Boss' }];
+      const drops = [{ item_id: 32336, item_name: 'Kept', boss: 'Boss' }];
       if (dropReads === 1) drops.push({ item_name: 'Removed', boss: 'Boss' });
       return Response.json({ drops });
     }
     if (view === 'members') return Response.json({ members: [] });
+    if (url.pathname === '/api/item') return Response.json({ itemID: 32336, lines: ['Kept', '+20 Strength'] });
     throw new Error(`unexpected request: ${input}`);
   };
   const document = {
@@ -50,7 +56,7 @@ test('an open raid detail refreshes a removed drop without a user click', async 
     addEventListener() {},
   };
   const context = createContext({
-    document, fetch, Response, URL, AbortController, Date, JSON,
+    document, fetch, Response, URL, AbortController, Date, JSON, window: { innerWidth: 1000, innerHeight: 800 },
     sessionStorage: {
       getItem: (key) => storage.get(key) ?? null,
       setItem: (key, value) => storage.set(key, value),
@@ -69,10 +75,17 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(get('#drop-count').textContent, '2 records');
   assert.equal(get('#drop-list').children.length, 2);
+  const itemButton = get('#drop-list').children[0].children[0];
+  assert.equal(itemButton.children[0].src, '/api/item?id=32336&icon=1');
+  itemButton.listeners.pointerenter();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(get('#item-tooltip').hidden, false);
+  assert.equal(get('#item-tooltip').children[1].textContent, '+20 Strength');
   assert.equal(intervals[0].delay, 5000);
   await intervals[0].callback();
   assert.equal(get('#drop-count').textContent, '1 records');
   assert.equal(get('#drop-list').children.length, 1);
+  assert.equal(get('#item-tooltip').hidden, true);
 });
 
 test('live portal refreshes the signed-in session before polling', async () => {

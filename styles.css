@@ -62,3 +62,14 @@ input:focus { border-color: var(--wow-gold); box-shadow: 0 0 0 3px rgba(223, 173
   .dashboard-heading { flex-wrap: wrap; }
   .dashboard-actions { width: 100%; justify-content: space-between; }
 }
+
+.loot-row { grid-template-columns: minmax(0, 1fr) auto; }
+.loot-item { width: fit-content; max-width: 100%; margin: 0; padding: 0; display: inline-flex; align-items: center; gap: 10px; background: none; color: var(--wow-ivory); text-align: left; border: 0; border-radius: 4px; font-size: 13px; font-weight: 700; }
+.loot-item:hover { background: none; color: var(--wow-gold-bright); filter: none; }
+.loot-item:focus-visible { outline: 2px solid var(--wow-gold-bright); outline-offset: 3px; }
+.loot-icon { flex: none; width: 38px; height: 38px; object-fit: cover; border: 1px solid #8b7145; border-radius: 5px; background: #0e1521; }
+.loot-row > span { align-self: center; }
+.item-tooltip { position: fixed; z-index: 100; max-width: min(340px, calc(100vw - 24px)); max-height: min(450px, calc(100vh - 24px)); overflow: auto; padding: 14px 18px; border: 1px solid #856a3e; border-radius: 10px; background: #101622; box-shadow: 0 16px 42px rgba(0,0,0,.75); color: #f4ead7; pointer-events: none; }
+.item-tooltip p { margin: 4px 0; font-size: 12px; line-height: 1.35; }
+.item-tooltip strong { display: block; margin-bottom: 8px; color: var(--wow-gold-bright); font-size: 14px; }
+.item-tooltip small { display: block; margin-top: 10px; color: var(--wow-muted); }

@@ -21,6 +21,61 @@ let refreshPromise = null;
 let refreshingView = false;
 let raidArchiveSignature = '';
 let raidDetailSignature = '';
+const itemTooltip = document.querySelector('#item-tooltip');
+const itemDetails = new Map();
+let tooltipAnchor = null;
+let tooltipSequence = 0;
+
+function hideItemTooltip() {
+  tooltipSequence += 1;
+  tooltipAnchor?.removeAttribute('aria-describedby');
+  tooltipAnchor = null;
+  itemTooltip.hidden = true;
+}
+
+function positionItemTooltip(anchor) {
+  const rect = anchor.getBoundingClientRect();
+  itemTooltip.style.left = `${Math.max(12, Math.min(rect.left, window.innerWidth - itemTooltip.offsetWidth - 12))}px`;
+  itemTooltip.style.top = `${rect.bottom + itemTooltip.offsetHeight + 12 < window.innerHeight ? rect.bottom + 8 : Math.max(12, rect.top - itemTooltip.offsetHeight - 8)}px`;
+}
+
+async function showItemTooltip(anchor, id, name) {
+  if (tooltipAnchor === anchor && !itemTooltip.hidden) return;
+  hideItemTooltip();
+  tooltipAnchor = anchor;
+  anchor.setAttribute('aria-describedby', 'item-tooltip');
+  itemTooltip.replaceChildren();
+  const heading = document.createElement('strong'); heading.textContent = name;
+  const note = document.createElement('p'); note.textContent = 'Loading item stats…';
+  itemTooltip.append(heading, note);
+  itemTooltip.hidden = false;
+  positionItemTooltip(anchor);
+  const sequence = tooltipSequence;
+  try {
+    let pending = itemDetails.get(id);
+    if (!pending) {
+      pending = fetch(`/api/item?id=${id}`).then(response => { if (!response.ok) throw new Error('Unavailable'); return response.json(); });
+      itemDetails.set(id, pending);
+      if (itemDetails.size > 256) itemDetails.delete(itemDetails.keys().next().value);
+    }
+    const details = await pending;
+    if (tooltipSequence !== sequence || tooltipAnchor !== anchor) return;
+    itemTooltip.replaceChildren();
+    const lines = details.itemID === id && Array.isArray(details.lines) ? details.lines.slice(0, 40) : [];
+    if (!lines.length) throw new Error('Unavailable');
+    for (const line of lines) {
+      const p = document.createElement('p'); p.textContent = String(line); itemTooltip.append(p);
+    }
+    const credit = document.createElement('small'); credit.textContent = 'TBC · Wowhead · base item stats'; itemTooltip.append(credit);
+    positionItemTooltip(anchor);
+  } catch {
+    itemDetails.delete(id);
+    if (tooltipSequence !== sequence || tooltipAnchor !== anchor) return;
+    note.textContent = 'Item stats are temporarily unavailable.';
+    itemTooltip.replaceChildren(heading, note);
+  }
+}
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape') hideItemTooltip(); });
 
 function setMessage(text, kind = '') {
   message.textContent = text;
@@ -290,9 +345,10 @@ async function loadRaidDetail(raid, guildID, quiet = false) {
     raidDetailSignature = signature;
     document.querySelector('#drop-count').textContent = `${drops.drops?.length ?? 0} records`;
     document.querySelector('#member-count').textContent = `${members.members?.length ?? 0} players`;
+    hideItemTooltip();
     dropList.replaceChildren();
     memberList.replaceChildren();
-    renderDetailList(dropList, drops.drops ?? [], (drop) => [drop.item_name, drop.boss || 'Boss not recorded', drop.winner ? `Awarded to ${drop.winner}` : 'Unawarded']);
+    renderDropList(dropList, drops.drops ?? []);
     renderDetailList(memberList, members.members ?? [], (member) => [member.name, member.class || 'Class not recorded', member.present ? 'Present' : 'Absent']);
   } catch (error) {
     if (activeRaid?.raid.id === raid.id && !raidDetail.hidden) {
@@ -318,6 +374,35 @@ function renderDetailList(container, rows, fields) {
     const item = document.createElement('div'); item.className = 'detail-row';
     item.innerHTML = '<strong></strong><span></span><em></em>';
     const values = fields(row); item.querySelector('strong').textContent = values[0]; item.querySelector('span').textContent = values[1]; item.querySelector('em').textContent = values[2]; container.append(item);
+  }
+}
+
+function renderDropList(container, drops) {
+  for (const drop of drops) {
+    const item = document.createElement('div'); item.className = 'detail-row loot-row';
+    const id = Number(drop.item_id);
+    const validID = Number.isInteger(id) && id > 0 && id <= 10000000;
+    const name = String(drop.item_name || 'Unknown item');
+    const title = document.createElement(validID ? 'button' : 'strong');
+    title.className = 'loot-item';
+    if (validID) {
+      title.type = 'button';
+      title.setAttribute('aria-label', `Item details: ${name}`);
+      const icon = document.createElement('img');
+      icon.className = 'loot-icon'; icon.alt = ''; icon.width = 38; icon.height = 38;
+      icon.src = `/api/item?id=${id}&icon=1`;
+      icon.addEventListener('error', () => { icon.hidden = true; });
+      title.append(icon);
+      title.addEventListener('pointerenter', () => showItemTooltip(title, id, name));
+      title.addEventListener('pointerleave', hideItemTooltip);
+      title.addEventListener('focus', () => showItemTooltip(title, id, name));
+      title.addEventListener('blur', hideItemTooltip);
+      title.addEventListener('click', () => showItemTooltip(title, id, name));
+    }
+    const label = document.createElement('strong'); label.textContent = name; title.append(label);
+    const boss = document.createElement('span'); boss.textContent = drop.boss || 'Boss not recorded';
+    const award = document.createElement('em'); award.textContent = drop.winner ? `Awarded to ${drop.winner}` : 'Unawarded';
+    item.append(title, boss, award); container.append(item);
   }
 }
 
