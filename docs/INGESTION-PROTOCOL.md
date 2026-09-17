@@ -1,16 +1,16 @@
 # Companion ingestion protocol
 
-The pairing flow and atomic upload database function are implemented. The upload
-API and manual bridge adapter are in the source tree, but the bridge upload
-control remains disabled until the API deployment and a synthetic end-to-end
-check pass. No real raid data has been uploaded.
+The pairing flow, device-bound upload API, and atomic database function are
+implemented. A paired, running bridge syncs changed saved snapshots automatically;
+demo snapshots never upload. The website refreshes open raid views periodically.
 
 ## Current bridge boundary
 
 The companion captures and validates optical-strip data locally, persists bounded
 snapshots in its local data directory, and serves its browser UI on `127.0.0.1:8765`.
-It stores one device credential after explicit pairing. Capture stays local; the
-manual upload control is currently gated off.
+It stores one upload-only device credential after explicit pairing. Screen capture
+stays local; only validated structured raid records are uploaded. The local saved
+sessions are the durable retry source during network outages and bridge restarts.
 
 ## Required connection flow
 
@@ -41,15 +41,15 @@ Corrections need their own immutable audit record with actor, time, reason, prio
 and new value. A later companion revision must be reconciled against those corrections.
 No upload handler is complete until this behavior has database tests.
 
-## Implementation order
+## Completed implementation checks
 
 1. Add guild-scoped devices, pairing challenges, upload receipts and correction/audit
    tables to a new tested migration.
 2. Add authenticated pairing and upload handlers with replay and size limits.
 3. Add synthetic end-to-end tests for cross-guild rejection, revocation, retries,
    stale revisions and correction preservation.
-4. Add an opt-in companion upload adapter without changing the existing local capture
-   path, then test it against a disposable guild and synthetic snapshots.
+4. Keep capture independent of the background cloud worker, and verify automatic
+   add, delete, retry, restart recovery, and demo isolation with synthetic snapshots.
 
-No real raid data should be uploaded until all four stages pass, including a
-synthetic request through the deployed API and a manual bridge upload test.
+The bridge shows sync errors locally and retries transient failures. A paired
+device can be revoked server-side without exposing its credential to the browser.
