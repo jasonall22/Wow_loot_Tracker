@@ -49,13 +49,18 @@ test('an open raid detail refreshes a removed drop without a user click', async 
     if (view === 'drops') {
       dropReads += 1;
       const drops = [{ id: 'drop-1', item_id: 32336, item_name: 'Kept', boss: 'Boss', winner: corrected ? 'Player' : null, award_type: corrected ? 'MS' : null }];
-      if (dropReads === 1) drops.push({ item_name: 'Removed', boss: 'Boss' });
+      if (dropReads === 1) drops.push({ item_id: 32337, item_name: 'Removed', boss: 'Boss' });
       return Response.json({ drops });
     }
     if (view === 'members') return Response.json({ members: [] });
-    if (url.pathname === '/api/item') return Response.json({ itemID: 32336, lines: [
-      [{ text: 'Kept', quality: 'q4' }], [{ text: '+20 Strength', quality: 'q2' }],
-    ] });
+    if (url.pathname === '/api/item') {
+      assert.equal(url.searchParams.get('format'), '2');
+      return Response.json(url.searchParams.get('id') === '32337'
+        ? { itemID: 32337, lines: ['Removed', '+10 Intellect'] }
+        : { itemID: 32336, lines: [
+          [{ text: 'Kept', quality: 'q4' }], [{ text: '+20 Strength', quality: 'q2' }],
+        ] });
+    }
     if (url.pathname === '/api/admin') {
       const body = JSON.parse(options.body); adminActions.push(body);
       if (body.action === 'delete_raid') deleted = true;
@@ -98,6 +103,11 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   assert.equal(get('#item-tooltip').children[0].children[0].className, 'q4');
   assert.equal(get('#item-tooltip').children[1].children[0].textContent, '+20 Strength');
   assert.equal(get('#item-tooltip').style.left, '222px');
+  const legacyButton = get('#drop-list').children[1].children[0];
+  legacyButton.listeners.pointerenter();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(get('#item-tooltip').children[0].children[0].textContent, 'Removed');
+  assert.equal(get('#item-tooltip').children[1].children[0].textContent, '+10 Intellect');
   assert.equal(intervals[0].delay, 5000);
   await intervals[0].callback();
   assert.equal(get('#drop-count').textContent, '1 records');

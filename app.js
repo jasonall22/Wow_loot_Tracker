@@ -60,7 +60,7 @@ async function showItemTooltip(anchor, id, name) {
   try {
     let pending = itemDetails.get(id);
     if (!pending) {
-      pending = fetch(`/api/item?id=${id}`).then(response => { if (!response.ok) throw new Error('Unavailable'); return response.json(); });
+      pending = fetch(`/api/item?id=${id}&format=2`).then(response => { if (!response.ok) throw new Error('Unavailable'); return response.json(); });
       itemDetails.set(id, pending);
       if (itemDetails.size > 256) itemDetails.delete(itemDetails.keys().next().value);
     }
@@ -68,18 +68,22 @@ async function showItemTooltip(anchor, id, name) {
     if (tooltipSequence !== sequence || tooltipAnchor !== anchor) return;
     itemTooltip.replaceChildren();
     const lines = details.itemID === id && Array.isArray(details.lines) ? details.lines.slice(0, 40) : [];
-    if (!lines.length) throw new Error('Unavailable');
+    let renderedLines = 0;
     for (const line of lines) {
       const p = document.createElement('p'); p.className = 'tooltip-line';
-      for (const part of Array.isArray(line) ? line : []) {
-        if (typeof part?.text !== 'string') continue;
+      const parts = typeof line === 'string' ? [{ text: line, quality: 'q1' }] : Array.isArray(line) ? line : [];
+      let hasText = false;
+      for (const part of parts) {
+        if (typeof part?.text !== 'string' || !part.text.trim()) continue;
         const span = document.createElement('span');
         span.className = /^q[0-7]?$/.test(part.quality) ? part.quality : 'q1';
         span.textContent = part.text;
         p.append(span);
+        hasText = true;
       }
-      itemTooltip.append(p);
+      if (hasText) { itemTooltip.append(p); renderedLines += 1; }
     }
+    if (!renderedLines) throw new Error('Unavailable');
     const credit = document.createElement('p'); credit.className = 'tooltip-credit'; credit.textContent = 'TBC · Wowhead · base item stats'; itemTooltip.append(credit);
     positionItemTooltip(anchor);
   } catch {
