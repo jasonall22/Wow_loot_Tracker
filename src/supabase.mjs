@@ -14,6 +14,14 @@ export function loadConfig(env = process.env) {
   return { origin: url.origin, publishableKey: env.SUPABASE_PUBLISHABLE_KEY };
 }
 
+export function loadServerConfig(env = process.env) {
+  const config = loadConfig(env);
+  if (!/^sb_secret_[A-Za-z0-9_-]+$/.test(env.SUPABASE_SECRET_KEY ?? '')) {
+    throw new PortalError(503, 'cloud_not_configured', 'This portal has not been connected to its dedicated cloud project yet.');
+  }
+  return { ...config, secretKey: env.SUPABASE_SECRET_KEY };
+}
+
 export function bearerToken(request) {
   const value = request.headers.get('authorization');
   const match = typeof value === 'string' && value.match(/^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i);
