@@ -18,6 +18,28 @@ button { width: 100%; border: 0; border-radius: 10px; background: #78d7bb; color
 .dashboard-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; }
 .dashboard-topbar { width: 100%; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .dashboard-topbar .dashboard-logo { margin: -8px 0 0; }
+.roster-trigger { width: auto; margin-top: 30px; }
+.roster-list { display: grid; gap: 10px; margin-top: 24px; }
+.roster-player { border: 1px solid #394152; border-radius: 12px; background: #151e2c; overflow: hidden; }
+.roster-player-summary { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(0, 1fr) auto; align-items: center; gap: 18px; padding: 16px 20px; cursor: pointer; }
+.roster-player-summary::marker { color: var(--wow-gold); }
+.roster-identity { display: grid; gap: 4px; }
+.roster-identity strong { font-size: 16px; }
+.roster-identity small, .roster-award-meta { color: #aeb8c7; font-size: 12px; }
+.roster-identity .class-warrior { color: #c69b6d; }.roster-identity .class-paladin { color: #f48cba; }
+.roster-identity .class-hunter { color: #aad372; }.roster-identity .class-rogue { color: #fff468; }
+.roster-identity .class-priest { color: #fff; }.roster-identity .class-shaman { color: #0070dd; }
+.roster-identity .class-mage { color: #3fc7eb; }.roster-identity .class-warlock { color: #8788ee; }
+.roster-identity .class-druid { color: #ff7c0a; }
+.roster-icons { display: flex; gap: 6px; min-height: 34px; }
+.roster-icons img { width: 34px; height: 34px; border: 1px solid #806a45; border-radius: 4px; }
+.roster-count { color: var(--wow-gold-bright); font-size: 13px; white-space: nowrap; }
+.roster-history { padding: 0 20px 12px; border-top: 1px solid #394152; }
+.roster-history .muted { margin: 16px 0 4px; }
+.roster-award { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid #2b3647; }
+.roster-award .loot-item { flex-shrink: 1; }
+.roster-award-meta { text-align: right; }
+@media (max-width: 680px) { .roster-player-summary { grid-template-columns: 1fr auto; }.roster-icons { grid-column: 1 / -1; grid-row: 2; }.roster-award { align-items: flex-start; flex-direction: column; }.roster-award-meta { text-align: left; } }
 .pairing-trigger { width: auto; margin: 0; padding: 10px 16px; white-space: nowrap; }
 .pairing-dialog { width: min(480px, calc(100% - 32px)); max-height: calc(100vh - 32px); overflow: auto; padding: 32px; border: 1px solid var(--wow-bronze); border-radius: 20px; background: var(--wow-panel); color: #f6f7fb; box-shadow: 0 30px 100px rgba(0,0,0,.6); }
 .pairing-dialog::backdrop { background: rgba(3, 7, 13, .76); backdrop-filter: blur(3px); }

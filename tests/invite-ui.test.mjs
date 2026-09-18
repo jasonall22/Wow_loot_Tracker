@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Script, createContext } from 'node:vm';
+const appSource = `${readFileSync(new URL('../src/roster.mjs', import.meta.url), 'utf8').replace('export function', 'function')}\n${readFileSync(new URL('../app.js', import.meta.url), 'utf8').replace("import { buildLootRoster } from './src/roster.mjs';", '')}`;
 
 class Element {
   constructor() {
@@ -41,7 +42,7 @@ test('invite URL opens password setup, clears tokens from URL, and joins on subm
     sessionStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
     setInterval() {}, navigator: { clipboard: { writeText: async () => {} } },
   });
-  new Script(readFileSync(new URL('../app.js', import.meta.url), 'utf8')).runInContext(context);
+  new Script(appSource).runInContext(context);
   assert.equal(get('#invite-setup').hidden, false);
   assert.equal(get('#signed-out').hidden, true);
   assert.equal(cleanUrl, '/');
@@ -86,7 +87,7 @@ test('reloaded invite finishes joining without setting the password a second tim
     sessionStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
     setInterval() {}, navigator: { clipboard: { writeText: async () => {} } },
   });
-  new Script(readFileSync(new URL('../app.js', import.meta.url), 'utf8')).runInContext(context);
+  new Script(appSource).runInContext(context);
   assert.equal(get('#invite-password-fields').hidden, true);
   const form = get('#invite-password-form');
   const event = { preventDefault() {}, currentTarget: form };

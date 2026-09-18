@@ -31,7 +31,7 @@ test('member sees guild list without auth IDs, hidden notes or trusted client ro
   assert.ok(!text.includes('secret'));
   assert.ok(!text.includes('user_id'));
 });
-for (const view of ['context', 'raids', 'raid', 'drops', 'members', 'visits']) {
+for (const view of ['context', 'raids', 'roster_members', 'roster_drops', 'raid', 'drops', 'members', 'visits']) {
   test(`ordinary member can request ${view}`, async () => {
     const { handle } = setup();
     assert.equal((await handle(request(route(view)))).status, 200);
@@ -42,6 +42,12 @@ for (const view of ['context', 'raids', 'raid', 'drops', 'members', 'visits']) {
     assert.deepEqual(calls.map(x => x.method), ['authenticate', 'membership']);
   });
 }
+test('guild roster reads require membership and reject wrong-guild rows', async () => {
+  const { handle } = setup({ roster_drops: async () => [{ guild_id: OTHER_GUILD, raid_id: RAID, id: 'secret' }] });
+  assert.equal((await handle(request(route('roster_drops')))).status, 503);
+  const { handle: other } = setup({ roster_members: async () => [{ guild_id: OTHER_GUILD, raid_id: RAID, name: 'secret' }] });
+  assert.equal((await other(request(route('roster_members')))).status, 503);
+});
 for (const role of ['member', 'uploader']) test(`${role} cannot read comparison endpoint`, async () => {
   const { handle, calls } = setup({ membership: async () => ({ ...membership, can_upload: role === 'uploader' }) });
   assert.equal((await handle(request(route('comparisons')))).status, 403);

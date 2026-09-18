@@ -87,6 +87,17 @@
               <p id="dashboard-message" class="message" role="status" aria-live="polite"></p>
             </section>
           </div>
+          <button id="open-roster" class="secondary roster-trigger" type="button">View guild loot roster →</button>
+        </div>
+        <div id="guild-roster" hidden>
+          <button id="back-from-roster" class="back" type="button">← Guild overview</button>
+          <p class="eyebrow">GUILD LOOT ROSTER</p>
+          <h2>Players &amp; awarded loot</h2>
+          <p class="muted">Recorded raid participants and awards. This is not a live guild-membership or equipped-gear list.</p>
+          <label for="roster-search">Find a player</label>
+          <input id="roster-search" type="search" placeholder="Search by character name" autocomplete="off">
+          <p id="roster-message" class="message" role="status" aria-live="polite"></p>
+          <div id="roster-list" class="roster-list"></div>
         </div>
         <div id="raid-detail" hidden>
           <div class="raid-detail-toolbar">

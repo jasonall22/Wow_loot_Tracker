@@ -1,3 +1,5 @@
+import { buildLootRoster } from './src/roster.mjs';
+
 const state = { config: null, session: null };
 const shell = document.querySelector('.shell');
 const signedOut = document.querySelector('#signed-out');
@@ -5,6 +7,7 @@ const signedIn = document.querySelector('#signed-in');
 const inviteSetup = document.querySelector('#invite-setup');
 const dashboard = document.querySelector('#dashboard');
 const raidDetail = document.querySelector('#raid-detail');
+const guildRoster = document.querySelector('#guild-roster');
 const form = document.querySelector('#sign-in-form');
 const message = document.querySelector('#message');
 const guildList = document.querySelector('#guild-list');
@@ -25,6 +28,8 @@ let pairingRequest = null;
 let selectedGuildID = null;
 let guilds = [];
 let activeRaid = null;
+let rosterPlayers = [];
+let rosterRequest = 0;
 let raidMembers = [];
 let editingDrop = null;
 let canManageRaids = false;
@@ -193,6 +198,7 @@ function sessionExpired() {
   inviteSetup.hidden = true;
   dashboard.hidden = true;
   raidDetail.hidden = true;
+  guildRoster.hidden = true;
   signedOut.hidden = false;
   shell.classList.remove('workspace-view');
   setMessage('Your session expired. Sign in again to see live updates.', 'error');
@@ -285,6 +291,8 @@ async function openDashboard(entry) {
   const membership = entry.membership ?? {};
   selectedGuildID = details.id;
   activeRaid = null;
+  guildRoster.hidden = true;
+  rosterRequest += 1;
   canManageRaids = entry.permissions?.manageRaids === true;
   raidArchiveSignature = '';
   raidArchiveVisibleLimit = RAID_ARCHIVE_PAGE_SIZE;
@@ -358,6 +366,101 @@ async function loadRaidArchive(guildID, quiet = false) {
     if (request === raidArchiveRequest) loadMore.disabled = false;
   }
 }
+
+async function loadGuildPages(guildID, view, maxRows = 20000) {
+  const rows = [];
+  for (let offset = 0; offset <= maxRows; offset += 200) {
+    const response = await portalFetch(`/api/portal?view=${view}&guild=${encodeURIComponent(guildID)}&limit=200&offset=${offset}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !Array.isArray(data[view])) throw new Error(`Could not load ${view.replace('_', ' ')}.`);
+    rows.push(...data[view]);
+    if (data[view].length < 200) return rows;
+  }
+  throw new Error('The roster is too large to load completely. Please contact the site administrator.');
+}
+
+function renderGuildRoster() {
+  const list = document.querySelector('#roster-list');
+  const search = document.querySelector('#roster-search').value.trim().toLocaleLowerCase();
+  list.replaceChildren();
+  const visible = rosterPlayers.filter(player => player.name.toLocaleLowerCase().includes(search));
+  if (!visible.length) {
+    const empty = document.createElement('p'); empty.className = 'muted';
+    empty.textContent = rosterPlayers.length ? 'No player matches that search.' : 'No raid participants or awards have been recorded yet.';
+    list.append(empty); return;
+  }
+  for (const player of visible) {
+    const card = document.createElement('details'); card.className = 'roster-player';
+    const summary = document.createElement('summary'); summary.className = 'roster-player-summary';
+    const identity = document.createElement('span'); identity.className = 'roster-identity';
+    const name = document.createElement('strong'); name.textContent = player.name;
+    const className = String(player.class || '').trim().toLowerCase().replace(/\s+/g, '');
+    if (WOW_CLASSES.has(className.toUpperCase())) name.className = `class-${className}`;
+    const meta = document.createElement('small');
+    meta.textContent = `${player.class || 'Class not recorded'} · ${player.raidCount} recorded ${player.raidCount === 1 ? 'raid' : 'raids'}`;
+    identity.append(name, meta);
+    const icons = document.createElement('span'); icons.className = 'roster-icons';
+    for (const drop of player.loot.slice(0, 4)) {
+      const id = Number(drop.item_id);
+      if (!Number.isInteger(id) || id < 1 || id > 10000000) continue;
+      const icon = document.createElement('img'); icon.alt = ''; icon.width = 34; icon.height = 34;
+      icon.src = `/api/item?id=${id}&icon=1`; icon.addEventListener('error', () => { icon.hidden = true; });
+      icons.append(icon);
+    }
+    const count = document.createElement('b'); count.className = 'roster-count'; count.textContent = `${player.msCount} MS · ${player.loot.length} awards`;
+    summary.append(identity, icons, count); card.append(summary);
+    const history = document.createElement('div'); history.className = 'roster-history';
+    if (!player.loot.length) {
+      const empty = document.createElement('p'); empty.className = 'muted'; empty.textContent = 'No awarded loot recorded.'; history.append(empty);
+    }
+    for (const drop of player.loot) {
+      const row = document.createElement('div'); row.className = 'roster-award';
+      const id = Number(drop.item_id); const validID = Number.isInteger(id) && id > 0 && id <= 10000000;
+      const title = document.createElement(validID ? 'button' : 'strong'); title.className = 'loot-item';
+      if (validID) {
+        title.type = 'button'; title.setAttribute('aria-label', `Item details: ${drop.item_name}`);
+        const icon = document.createElement('img'); icon.className = 'loot-icon'; icon.alt = ''; icon.width = 38; icon.height = 38;
+        icon.src = `/api/item?id=${id}&icon=1`; icon.addEventListener('error', () => { icon.hidden = true; }); title.append(icon);
+        title.addEventListener('pointerenter', () => showItemTooltip(title, id, drop.item_name));
+        title.addEventListener('pointerleave', hideItemTooltip);
+        title.addEventListener('focus', () => showItemTooltip(title, id, drop.item_name));
+        title.addEventListener('blur', hideItemTooltip);
+        title.addEventListener('click', () => showItemTooltip(title, id, drop.item_name));
+        itemQuality(id).then(quality => { if (quality !== null) title.className = `loot-item item-q${quality}`; });
+      }
+      const label = document.createElement('strong'); label.textContent = drop.item_name || 'Unknown item'; title.append(label);
+      const details = document.createElement('span'); details.className = 'roster-award-meta';
+      const when = drop.awarded_at || drop.dropped_at;
+      const date = when && Number.isFinite(Date.parse(when)) ? new Date(when).toLocaleString() : 'Date unavailable';
+      details.textContent = `${drop.award_type || 'Other'} · ${date} · ${drop.raid_name || 'Raid'}`;
+      row.append(title, details); history.append(row);
+    }
+    card.append(history); list.append(card);
+  }
+}
+
+document.querySelector('#open-roster').addEventListener('click', async () => {
+  if (!selectedGuildID) return;
+  const guildID = selectedGuildID; const request = ++rosterRequest;
+  dashboard.hidden = true; guildRoster.hidden = false;
+  document.querySelector('#roster-list').replaceChildren();
+  const notice = document.querySelector('#roster-message'); notice.textContent = 'Loading tracked players and awards…'; notice.className = 'message';
+  try {
+    const [raids, members, drops] = await Promise.all([
+      loadGuildPages(guildID, 'raids'), loadGuildPages(guildID, 'roster_members'), loadGuildPages(guildID, 'roster_drops'),
+    ]);
+    if (guildRoster.hidden || guildID !== selectedGuildID || request !== rosterRequest) return;
+    rosterPlayers = buildLootRoster(members, drops, raids);
+    notice.textContent = `${rosterPlayers.length} recorded players · ${rosterPlayers.reduce((sum, player) => sum + player.loot.length, 0)} awards`;
+    renderGuildRoster();
+  } catch (error) {
+    if (request === rosterRequest && !guildRoster.hidden) { notice.textContent = error.message; notice.className = 'message error'; }
+  }
+});
+document.querySelector('#back-from-roster').addEventListener('click', () => {
+  rosterRequest += 1; hideItemTooltip(); guildRoster.hidden = true; dashboard.hidden = false; refreshVisible();
+});
+document.querySelector('#roster-search').addEventListener('input', renderGuildRoster);
 
 document.querySelector('#load-more-raids').addEventListener('click', async () => {
   if (!selectedGuildID || dashboard.hidden) return;

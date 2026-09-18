@@ -11,12 +11,12 @@ const CHILDREN = { drops: dropProjection, members: memberProjection, visits: vis
 function parseQuery(request) {
   const params = new URL(request.url).searchParams;
   const view = params.get('view') ?? 'guilds';
-  const allowed = ['guilds', 'context', 'raids', 'raid', ...Object.keys(CHILDREN)];
+  const allowed = ['guilds', 'context', 'raids', 'roster_members', 'roster_drops', 'raid', ...Object.keys(CHILDREN)];
   if (!allowed.includes(view)) throw badRequest();
   const keys = new Set(['view']);
   if (view !== 'guilds') keys.add('guild');
   if (view === 'raid' || Object.hasOwn(CHILDREN, view)) keys.add('raid');
-  const paginated = view === 'raids' || Object.hasOwn(CHILDREN, view);
+  const paginated = ['raids', 'roster_members', 'roster_drops'].includes(view) || Object.hasOwn(CHILDREN, view);
   if (paginated) { keys.add('limit'); keys.add('offset'); }
   for (const key of params.keys()) if (!keys.has(key) || params.getAll(key).length !== 1) throw badRequest();
   function integer(name, fallback, min, max) {
@@ -69,6 +69,10 @@ export function createPortalHandler({ backendFactory = () => createSupabaseBacke
       if (view === 'raids') {
         const rows = scopedRows(await backend.raids(guildID, token, paging), guildID);
         return jsonResponse({ raids: rows.map(raidProjection), page: paging });
+      }
+      if (view === 'roster_members' || view === 'roster_drops') {
+        const rows = scopedRows(await backend[view](guildID, token, paging), guildID);
+        return jsonResponse({ [view]: rows.map(view === 'roster_members' ? memberProjection : dropProjection), page: paging });
       }
       const raid = await backend.raid(guildID, raidID, token);
       if (!raid) throw notFound();

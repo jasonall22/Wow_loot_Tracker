@@ -109,6 +109,16 @@ for (const method of ['drops', 'members', 'visits', 'comparisons']) test(`${meth
   assert.ok(!url.searchParams.get('select').includes('*'));
   assert.equal(init.headers.Authorization, `Bearer ${token()}`);
 });
+for (const method of ['roster_members', 'roster_drops']) test(`${method} is guild-filtered and keeps the user JWT`, async () => {
+  const { backend, calls } = setup([Response.json([])]);
+  await backend[method](GUILD, token(), { limit: 50, offset: 10 });
+  const { url, init } = calls[0];
+  assert.equal(url.searchParams.get('guild_id'), `eq.${GUILD}`);
+  assert.equal(url.searchParams.get('limit'), '50');
+  assert.equal(url.searchParams.get('offset'), '10');
+  assert.ok(!url.searchParams.get('select').includes('*'));
+  assert.equal(init.headers.Authorization, `Bearer ${token()}`);
+});
 test('API to real adapter to mocked Auth and REST response works without trusting metadata', async () => {
   const { backend, calls } = setup([
     Response.json({ ...user, user_metadata: { role: 'admin' } }),

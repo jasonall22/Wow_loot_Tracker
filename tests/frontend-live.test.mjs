@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Script, createContext } from 'node:vm';
+const appSource = `${readFileSync(new URL('../src/roster.mjs', import.meta.url), 'utf8').replace('export function', 'function')}\n${readFileSync(new URL('../app.js', import.meta.url), 'utf8').replace("import { buildLootRoster } from './src/roster.mjs';", '')}`;
 
 class Element {
   constructor() {
@@ -103,7 +104,7 @@ test('an open raid detail refreshes a removed drop without a user click', async 
     setInterval: (callback, delay) => intervals.push({ callback, delay }),
     navigator: { clipboard: { writeText: async () => {} } },
   });
-  new Script(readFileSync(new URL('../app.js', import.meta.url), 'utf8')).runInContext(context);
+  new Script(appSource).runInContext(context);
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(get('#guild-list').children.length, 1);
   get('#guild-list').children[0].listeners.click();
@@ -222,7 +223,7 @@ test('raid archive loads older pages and refreshes the visible range', async () 
     setInterval: (callback) => intervals.push(callback),
     navigator: { clipboard: { writeText: async () => {} } },
   });
-  new Script(readFileSync(new URL('../app.js', import.meta.url), 'utf8')).runInContext(context);
+  new Script(appSource).runInContext(context);
   await new Promise((resolve) => setImmediate(resolve));
   get('#guild-list').children[0].listeners.click();
   await new Promise((resolve) => setImmediate(resolve));
@@ -276,7 +277,7 @@ test('live portal refreshes the signed-in session before polling', async () => {
     setInterval() {},
     navigator: { clipboard: { writeText: async () => {} } },
   });
-  new Script(readFileSync(new URL('../app.js', import.meta.url), 'utf8')).runInContext(context);
+  new Script(appSource).runInContext(context);
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(calls.length, 3);
   assert.equal(JSON.parse(calls[1].options.body).refresh_token, 'old-refresh');
