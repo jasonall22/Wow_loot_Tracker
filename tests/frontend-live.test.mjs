@@ -34,28 +34,34 @@ class Element {
 test('an open raid detail refreshes a removed drop without a user click', async () => {
   const elements = new Map();
   const get = (selector) => elements.get(selector) ?? elements.set(selector, new Element()).get(selector);
+  const lootGroups = () => get('#drop-list').children;
+  const lootRows = () => lootGroups().flatMap((group) => group.children[1].children);
   for (const selector of ['#signed-in', '#dashboard', '#raid-detail']) get(selector).hidden = true;
   const storage = new Map([['apoc_session', JSON.stringify({ access_token: 'test-access-token', expires_at: 4102444800 })]]);
   const intervals = [];
   let dropReads = 0;
   let deleted = false;
   let corrected = false;
+  const raid = { id: 'raid-1', name: 'Tonight', revision: 2, closed_at: null };
   const adminActions = [];
   const attendance = [
-    { name: 'Player', present: true },
-    ...Array.from({ length: 199 }, (_, index) => ({ name: `Raider ${index + 1}`, present: index !== 0 })),
-    { name: 'Late arrival', present: true },
+    { character_key: 'player', name: 'Player', present: true },
+    ...Array.from({ length: 199 }, (_, index) => ({ character_key: `raider-${index + 1}`, name: `Raider ${index + 1}`, present: index > 1 })),
+    { character_key: 'late-arrival', name: 'Late arrival', present: true },
   ];
   const memberOffsets = [];
   const fetch = async (input, options = {}) => {
     const url = new URL(input, 'https://portal.example');
     const view = url.searchParams.get('view');
     if (view === 'guilds') return Response.json({ guilds: [{ guild: { id: 'guild-1', name: 'APOC' }, membership: { role: 'admin' }, permissions: { uploadRaids: true, manageRaids: true } }] });
-    if (view === 'raids') return Response.json({ raids: deleted ? [] : [{ id: 'raid-1', name: 'Tonight', revision: 2 }] });
+    if (view === 'raids') return Response.json({ raids: deleted ? [] : [raid] });
     if (view === 'drops') {
       dropReads += 1;
       const drops = [{ id: 'drop-1', item_id: 32336, item_name: 'Kept', boss: 'Boss', winner: corrected ? 'Player' : 'Off-roster', award_type: 'MS' }];
-      if (dropReads === 1) drops.push({ item_id: 32337, item_name: 'Removed', boss: 'Boss' });
+      if (dropReads === 1) drops.push(
+        { item_id: 32337, item_name: 'Removed', boss: 'Trash' },
+        { item_name: 'Another boss drop', boss: 'Boss' },
+      );
       return Response.json({ drops });
     }
     if (view === 'members') {
@@ -64,6 +70,7 @@ test('an open raid detail refreshes a removed drop without a user click', async 
       memberOffsets.push(offset);
       return Response.json({ members: attendance.slice(offset, offset + 200) });
     }
+    if (view === 'visits') return Response.json({ visits: [{ character_key: 'raider-1', joined_at: '2026-09-17T13:00:00Z' }] });
     if (url.pathname === '/api/item') {
       assert.equal(url.searchParams.get('format'), '2');
       return Response.json(url.searchParams.get('id') === '32337'
@@ -104,11 +111,18 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   assert.equal(get('#raid-list').children.length, 1);
   get('#raid-list').children[0].listeners.click();
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(get('#drop-count').textContent, '2 records');
+  assert.equal(get('#drop-count').textContent, '3 records');
   assert.equal(get('#member-count').textContent, '201 players');
+  assert.equal(get('#member-list').children[0].querySelector('em').textContent, 'Present');
+  assert.equal(get('#member-list').children[1].querySelector('em').textContent, 'Left raid');
+  assert.equal(get('#member-list').children[2].querySelector('em').textContent, 'No attendance recorded');
   assert.deepEqual(memberOffsets, [0, 200]);
-  assert.equal(get('#drop-list').children.length, 2);
-  const itemButton = get('#drop-list').children[0].children[0];
+  assert.equal(lootGroups().length, 2);
+  assert.equal(lootGroups()[0].children[0].children[0].textContent, 'Boss');
+  assert.equal(lootGroups()[0].children[0].children[1].textContent, '2 items');
+  assert.equal(lootGroups()[0].children[1].children.length, 2);
+  assert.equal(lootGroups()[1].children[0].children[0].textContent, 'Trash');
+  const itemButton = lootRows()[0].children[0];
   assert.equal(itemButton.children[0].src, '/api/item?id=32336&icon=1');
   itemButton.listeners.pointerenter();
   await new Promise((resolve) => setImmediate(resolve));
@@ -116,21 +130,32 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   assert.equal(get('#item-tooltip').children[0].children[0].className, 'q4');
   assert.equal(get('#item-tooltip').children[1].children[0].textContent, '+20 Strength');
   assert.equal(get('#item-tooltip').style.left, '222px');
-  const legacyButton = get('#drop-list').children[1].children[0];
+  const legacyButton = lootGroups()[1].children[1].children[0].children[0];
   legacyButton.listeners.pointerenter();
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(get('#item-tooltip').children[0].children[0].textContent, 'Removed');
   assert.equal(get('#item-tooltip').children[1].children[0].textContent, '+10 Intellect');
+  lootGroups()[0].children[0].listeners.click();
+  assert.equal(lootGroups()[0].children[1].hidden, true);
   assert.equal(intervals[0].delay, 5000);
   await intervals[0].callback();
   assert.equal(get('#drop-count').textContent, '1 records');
-  assert.equal(get('#drop-list').children.length, 1);
+  assert.equal(lootGroups().length, 1);
+  assert.equal(lootGroups()[0].children[1].hidden, true);
   assert.equal(get('#item-tooltip').hidden, true);
+  lootGroups()[0].children[0].listeners.click();
+  assert.equal(lootGroups()[0].children[1].hidden, false);
+  new Script("activeRaid.raid.closed_at = '2026-09-17T15:00:00Z'").runInContext(context);
+  await intervals[0].callback();
+  assert.equal(get('#member-list').children[0].querySelector('em').textContent, 'Attended');
+  assert.equal(get('#member-list').children[1].querySelector('em').textContent, 'Attended');
+  const unrecorded = get('#member-list').children.find((element) => element.querySelector('strong').textContent === 'Raider 2');
+  assert.equal(unrecorded.querySelector('em').textContent, 'No attendance recorded');
   get('#manage-raid').listeners.click();
   get('#raid-name').value = 'Renamed raid';
   await get('#save-raid-name').listeners.click();
   assert.equal(get('#detail-title').textContent, 'Renamed raid');
-  get('#drop-list').children[0].children.at(-1).listeners.click();
+  lootRows()[0].children.at(-1).listeners.click();
   const recipientOptions = get('#award-winner').children;
   assert.equal(recipientOptions[0].textContent, 'No recipient');
   assert.equal(recipientOptions.length, 203);
@@ -142,12 +167,62 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   await get('#save-award').listeners.click();
   assert.equal(adminActions.at(-1).action, 'edit_drop');
   assert.equal(adminActions.at(-1).winner, 'Player');
-  assert.equal(get('#drop-list').children[0].children[2].textContent, 'Awarded to Player · MS');
+  assert.equal(lootRows()[0].children[1].textContent, 'Awarded to Player · MS');
   get('#manage-raid').listeners.click();
   await get('#delete-raid').listeners.click();
   assert.equal(adminActions.at(-1).action, 'delete_raid');
-  assert.equal(get('#raid-count').textContent, 0);
+  assert.equal(get('#raid-count').textContent, '0');
   assert.equal(get('#raid-detail').hidden, true);
+});
+
+test('raid archive loads older pages and refreshes the visible range', async () => {
+  const elements = new Map();
+  const get = (selector) => elements.get(selector) ?? elements.set(selector, new Element()).get(selector);
+  for (const selector of ['#signed-in', '#dashboard', '#raid-detail']) get(selector).hidden = true;
+  const storage = new Map([['apoc_session', JSON.stringify({ access_token: 'test-access-token', expires_at: 4102444800 })]]);
+  let raids = Array.from({ length: 55 }, (_, index) => ({ id: `raid-${index}`, name: `Raid ${index}`, revision: 1 }));
+  const calls = [];
+  const intervals = [];
+  const fetch = async (input) => {
+    const url = new URL(input, 'https://portal.example');
+    const view = url.searchParams.get('view');
+    if (view === 'guilds') return Response.json({ guilds: [{ guild: { id: 'guild-1', name: 'APOC' }, membership: { role: 'member' } }] });
+    if (view === 'raids') {
+      const limit = Number(url.searchParams.get('limit'));
+      const offset = Number(url.searchParams.get('offset'));
+      calls.push({ limit, offset });
+      return Response.json({ raids: raids.slice(offset, offset + limit) });
+    }
+    throw new Error(`unexpected request: ${input}`);
+  };
+  const context = createContext({
+    document: { hidden: false, querySelector: get, createElement: () => new Element(), addEventListener() {} },
+    fetch, Response, URL, AbortController, Date, JSON,
+    sessionStorage: {
+      getItem: (key) => storage.get(key) ?? null,
+      setItem: (key, value) => storage.set(key, value),
+      removeItem: (key) => storage.delete(key),
+    },
+    setInterval: (callback) => intervals.push(callback),
+    navigator: { clipboard: { writeText: async () => {} } },
+  });
+  new Script(readFileSync(new URL('../app.js', import.meta.url), 'utf8')).runInContext(context);
+  await new Promise((resolve) => setImmediate(resolve));
+  get('#guild-list').children[0].listeners.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(get('#raid-list').children.length, 50);
+  assert.equal(get('#raid-count').textContent, '50+');
+  assert.equal(get('#load-more-raids').hidden, false);
+  assert.deepEqual(calls[0], { limit: 51, offset: 0 });
+  await get('#load-more-raids').listeners.click();
+  assert.equal(get('#raid-list').children.length, 55);
+  assert.equal(get('#raid-count').textContent, '55');
+  assert.equal(get('#load-more-raids').hidden, true);
+  assert.deepEqual(calls[1], { limit: 101, offset: 0 });
+  raids = raids.slice(1);
+  await intervals[0]();
+  assert.equal(get('#raid-list').children.length, 54);
+  assert.equal(get('#raid-count').textContent, '54');
 });
 
 test('connection button sits in the same full-width header row as the crest', () => {

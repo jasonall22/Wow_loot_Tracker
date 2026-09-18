@@ -55,6 +55,7 @@ input:focus { border-color: var(--wow-gold); box-shadow: 0 0 0 3px rgba(223, 173
 .shell.workspace-view .card { width: 100%; min-height: calc(100vh - 2 * clamp(16px, 2vw, 48px)); padding: clamp(24px, 3vw, 56px); }
 .dashboard-content { display: grid; grid-template-columns: minmax(300px, .9fr) minmax(400px, 1.4fr); gap: clamp(24px, 4vw, 72px); align-items: start; margin-top: 36px; }
 .dashboard-content .metrics { margin-top: 0; }
+.dashboard-archive #load-more-raids { margin-top: 16px; }
 .shell.workspace-view .detail-grid { grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: clamp(24px, 4vw, 72px); }
 @media (max-width: 900px) {
   .dashboard-content, .shell.workspace-view .detail-grid { grid-template-columns: 1fr; }
@@ -103,4 +104,15 @@ input:focus { border-color: var(--wow-gold); box-shadow: 0 0 0 3px rgba(223, 173
 .danger-button:hover { background: #653030; }
 .drop-edit { width: auto; grid-column: 2; grid-row: 2; justify-self: end; margin: 0; padding: 6px 10px; color: var(--wow-gold-bright); font-size: 11px; }
 .loot-row > em { grid-column: 1; }
+.loot-boss-group { min-width: 0; border-bottom: 1px solid #354052; }
+.loot-boss-toggle { width: 100%; display: flex; align-items: center; gap: 12px; margin: 0; padding: 13px 0; border: 0; border-radius: 0; background: transparent; color: var(--wow-gold-bright); text-align: left; }
+.loot-boss-toggle:hover { background: #ffffff0b; }
+.loot-boss-toggle:focus-visible { outline: 2px solid var(--wow-gold-bright); outline-offset: -2px; }
+.loot-boss-toggle strong { flex: 1; font-size: 13px; }
+.loot-boss-toggle span { color: #8d9bad; font-size: 11px; }
+.loot-boss-toggle .loot-boss-chevron { color: var(--wow-gold-bright); font-size: 16px; transition: transform .15s ease; }
+.loot-boss-toggle[aria-expanded="false"] .loot-boss-chevron { transform: rotate(-90deg); }
+.loot-boss-items[hidden] { display: none; }
+.loot-boss-items .detail-row:first-child { border-top: 1px solid #263449; }
+.loot-boss-items .detail-row:last-child { border-bottom: 0; }
 @media (max-width: 600px) { .dashboard-topbar { align-items: center; } .pairing-trigger { max-width: 60%; white-space: normal; } }

@@ -31,7 +31,11 @@ let canManageRaids = false;
 let refreshPromise = null;
 let refreshingView = false;
 let raidArchiveSignature = '';
+const RAID_ARCHIVE_PAGE_SIZE = 50;
+let raidArchiveVisibleLimit = RAID_ARCHIVE_PAGE_SIZE;
+let raidArchiveRequest = 0;
 let raidDetailSignature = '';
+const collapsedLootBosses = new Set();
 const itemTooltip = document.querySelector('#item-tooltip');
 const itemDetails = new Map();
 let tooltipAnchor = null;
@@ -252,6 +256,8 @@ async function openDashboard(entry) {
   activeRaid = null;
   canManageRaids = entry.permissions?.manageRaids === true;
   raidArchiveSignature = '';
+  raidArchiveVisibleLimit = RAID_ARCHIVE_PAGE_SIZE;
+  raidArchiveRequest += 1;
   shell.classList.add('workspace-view');
   signedIn.hidden = true;
   dashboard.hidden = false;
@@ -263,6 +269,7 @@ async function openDashboard(entry) {
   document.querySelector('#manage-members').hidden = entry.permissions?.manageMembers !== true;
   const raidList = document.querySelector('#raid-list');
   raidList.replaceChildren();
+  document.querySelector('#load-more-raids').hidden = true;
   dashboardMessage.textContent = 'Loading raid archive…';
   dashboardMessage.className = 'message';
   await loadRaidArchive(details.id);
@@ -270,17 +277,30 @@ async function openDashboard(entry) {
 
 async function loadRaidArchive(guildID, quiet = false) {
   const raidList = document.querySelector('#raid-list');
+  const loadMore = document.querySelector('#load-more-raids');
+  const request = ++raidArchiveRequest;
+  loadMore.disabled = true;
   try {
-    const response = await portalFetch(`/api/portal?view=raids&guild=${encodeURIComponent(guildID)}`);
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error?.message ?? 'Could not load raids.');
-    if (selectedGuildID !== guildID || dashboard.hidden) return;
-    const raids = data.raids ?? [];
-    document.querySelector('#raid-count').textContent = raids.length;
+    const rows = [];
+    let hasMore = false;
+    while (rows.length <= raidArchiveVisibleLimit) {
+      const limit = Math.min(200, raidArchiveVisibleLimit + 1 - rows.length);
+      const response = await portalFetch(`/api/portal?view=raids&guild=${encodeURIComponent(guildID)}&limit=${limit}&offset=${rows.length}`);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error?.message ?? 'Could not load raids.');
+      if (selectedGuildID !== guildID || dashboard.hidden || request !== raidArchiveRequest) return;
+      const batch = data.raids ?? [];
+      rows.push(...batch);
+      if (batch.length < limit) break;
+    }
+    hasMore = rows.length > raidArchiveVisibleLimit;
+    const raids = rows.slice(0, raidArchiveVisibleLimit);
+    document.querySelector('#raid-count').textContent = `${raids.length}${hasMore ? '+' : ''}`;
+    loadMore.hidden = !hasMore;
     dashboardMessage.textContent = '';
     dashboardMessage.className = 'message';
     if (!raids.length) dashboardMessage.textContent = 'No raids have been recorded for this guild yet.';
-    const signature = JSON.stringify(raids.map((raid) => [raid.id, raid.name, raid.revision, raid.created_at, raid.updated_at]));
+    const signature = JSON.stringify([hasMore, raids.map((raid) => [raid.id, raid.name, raid.revision, raid.created_at, raid.updated_at])]);
     if (signature === raidArchiveSignature) return;
     raidArchiveSignature = signature;
     raidList.replaceChildren();
@@ -299,12 +319,20 @@ async function loadRaidArchive(guildID, quiet = false) {
       raidList.append(item);
     }
   } catch (error) {
-    if (selectedGuildID === guildID && !dashboard.hidden) {
+    if (selectedGuildID === guildID && !dashboard.hidden && request === raidArchiveRequest) {
       dashboardMessage.textContent = quiet ? `Live refresh paused: ${error.message}` : error.message;
       dashboardMessage.className = 'message error';
     }
+  } finally {
+    if (request === raidArchiveRequest) loadMore.disabled = false;
   }
 }
+
+document.querySelector('#load-more-raids').addEventListener('click', async () => {
+  if (!selectedGuildID || dashboard.hidden) return;
+  raidArchiveVisibleLimit += RAID_ARCHIVE_PAGE_SIZE;
+  await loadRaidArchive(selectedGuildID);
+});
 
 pairingDialog.addEventListener('close', () => {
   pairingRequest?.abort();
@@ -367,6 +395,7 @@ document.querySelector('#copy-pairing').addEventListener('click', async () => {
 });
 
 async function openRaidDetail(raid, guildID) {
+  if (activeRaid?.raid.id !== raid.id || activeRaid.guildID !== guildID) collapsedLootBosses.clear();
   activeRaid = { raid, guildID };
   raidMembers = [];
   raidDetailSignature = '';
@@ -387,15 +416,16 @@ async function loadRaidDetail(raid, guildID, quiet = false) {
   const memberList = document.querySelector('#member-list');
   try {
     const base = `/api/portal?guild=${encodeURIComponent(guildID)}&raid=${encodeURIComponent(raid.id)}`;
-    const [dropResponse, members] = await Promise.all([
+    const [dropResponse, members, visits] = await Promise.all([
       portalFetch(`${base}&view=drops`),
       loadRaidMembers(base),
+      loadRaidVisits(base),
     ]);
     const drops = await dropResponse.json();
     if (!dropResponse.ok) throw new Error('Could not load raid details.');
     if (activeRaid?.raid.id !== raid.id || raidDetail.hidden) return;
     raidMembers = members;
-    const signature = JSON.stringify([drops.drops ?? [], members]);
+    const signature = JSON.stringify([drops.drops ?? [], members, visits, Boolean(raid.closed_at)]);
     document.querySelector('#detail-message').textContent = '';
     document.querySelector('#detail-message').className = 'message';
     if (!drops.drops?.length && !members.length) document.querySelector('#detail-message').textContent = 'No loot or roster records have been captured for this raid yet.';
@@ -408,7 +438,14 @@ async function loadRaidDetail(raid, guildID, quiet = false) {
     dropList.replaceChildren();
     memberList.replaceChildren();
     renderDropList(dropList, drops.drops ?? []);
-    renderDetailList(memberList, members, (member) => [member.name, member.class || 'Class not recorded', member.present ? 'Present' : 'Absent']);
+    const attended = new Set(visits.map((visit) => String(visit.character_key || '').toLowerCase()));
+    renderDetailList(memberList, members, (member) => {
+      const hasVisit = attended.has(String(member.character_key || '').toLowerCase());
+      const status = raid.closed_at
+        ? (hasVisit || member.present ? 'Attended' : 'No attendance recorded')
+        : (member.present ? 'Present' : hasVisit ? 'Left raid' : 'No attendance recorded');
+      return [member.name, member.class || 'Class not recorded', status];
+    });
   } catch (error) {
     if (activeRaid?.raid.id === raid.id && !raidDetail.hidden) {
       document.querySelector('#detail-message').textContent = quiet ? `Live refresh paused: ${error.message}` : error.message;
@@ -427,6 +464,18 @@ async function loadRaidMembers(base) {
     if (data.members.length < 200) return members;
   }
   throw new Error('Raid attendance is too large to load.');
+}
+
+async function loadRaidVisits(base) {
+  const visits = [];
+  for (let offset = 0; offset <= 5000; offset += 200) {
+    const response = await portalFetch(`${base}&view=visits&limit=200&offset=${offset}`);
+    const data = await response.json();
+    if (!response.ok || !Array.isArray(data.visits)) throw new Error('Could not load raid attendance visits.');
+    visits.push(...data.visits);
+    if (data.visits.length < 200) return visits;
+  }
+  throw new Error('Raid attendance has too many visits to load.');
 }
 
 async function refreshVisible() {
@@ -449,7 +498,37 @@ function renderDetailList(container, rows, fields) {
 }
 
 function renderDropList(container, drops) {
+  // Keep the encounter order supplied by the raid record, while placing all
+  // drops from the same boss together and retaining their order within it.
+  const groups = new Map();
   for (const drop of drops) {
+    const bossName = typeof drop.boss === 'string' && drop.boss.trim() ? drop.boss.trim() : 'Boss not recorded';
+    if (!groups.has(bossName)) groups.set(bossName, []);
+    groups.get(bossName).push(drop);
+  }
+  for (const [bossName, bossDrops] of groups) {
+    const group = document.createElement('section'); group.className = 'loot-boss-group';
+    const toggle = document.createElement('button'); toggle.className = 'loot-boss-toggle'; toggle.type = 'button';
+    const label = document.createElement('strong'); label.textContent = bossName;
+    const count = document.createElement('span'); count.textContent = `${bossDrops.length} ${bossDrops.length === 1 ? 'item' : 'items'}`;
+    const chevron = document.createElement('span'); chevron.className = 'loot-boss-chevron'; chevron.textContent = '▾'; chevron.setAttribute('aria-hidden', 'true');
+    toggle.append(label, count, chevron);
+    const body = document.createElement('div'); body.className = 'loot-boss-items';
+    const setExpanded = (expanded) => {
+      body.hidden = !expanded;
+      toggle.setAttribute('aria-expanded', String(expanded));
+      if (expanded) collapsedLootBosses.delete(bossName);
+      else { collapsedLootBosses.add(bossName); hideItemTooltip(); }
+    };
+    setExpanded(!collapsedLootBosses.has(bossName));
+    toggle.addEventListener('click', () => setExpanded(body.hidden));
+    group.append(toggle, body);
+    container.append(group);
+    for (const drop of bossDrops) renderDropRow(body, drop);
+  }
+}
+
+function renderDropRow(container, drop) {
     const item = document.createElement('div'); item.className = 'detail-row loot-row';
     const id = Number(drop.item_id);
     const validID = Number.isInteger(id) && id > 0 && id <= 10000000;
@@ -471,10 +550,9 @@ function renderDropList(container, drops) {
       title.addEventListener('click', () => showItemTooltip(title, id, name));
     }
     const label = document.createElement('strong'); label.textContent = name; title.append(label);
-    const boss = document.createElement('span'); boss.textContent = drop.boss || 'Boss not recorded';
     const award = document.createElement('em');
     award.textContent = drop.winner ? `Awarded to ${drop.winner}${drop.award_type ? ` · ${drop.award_type}` : ''}` : drop.award_type || 'Unawarded';
-    item.append(title, boss, award);
+    item.append(title, award);
     if (canManageRaids && drop.id) {
       const edit = document.createElement('button');
       edit.className = 'drop-edit secondary'; edit.type = 'button'; edit.textContent = 'Edit award';
@@ -491,7 +569,6 @@ function renderDropList(container, drops) {
       item.append(edit);
     }
     container.append(item);
-  }
 }
 
 function populateRecipientOptions(currentWinner) {
