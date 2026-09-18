@@ -40,7 +40,10 @@
         <div id="dashboard" hidden>
           <div class="dashboard-topbar">
             <img class="logo dashboard-logo" src="/assets/apoc-logo.png" alt="APOC crest">
-            <button id="create-pairing" class="pairing-trigger" type="button" hidden>Connection code</button>
+            <div class="dashboard-actions">
+              <button id="manage-members" class="secondary compact-button" type="button" hidden>Manage members</button>
+              <button id="create-pairing" class="pairing-trigger" type="button" hidden>Connection code</button>
+            </div>
           </div>
           <button id="back-to-guilds" class="back" type="button">← Your guilds</button>
           <div class="dashboard-heading">
@@ -92,6 +95,22 @@
             <p id="pairing-expiry" class="muted"></p>
             <button id="copy-pairing" type="button">Copy code</button>
           </div>
+        </dialog>
+        <dialog id="members-dialog" class="pairing-dialog edit-dialog" aria-labelledby="members-dialog-title">
+          <button id="close-members-dialog" class="dialog-close" type="button" aria-label="Close member management">×</button>
+          <p class="eyebrow">GUILD ADMINISTRATION</p>
+          <h2 id="members-dialog-title">Manage members</h2>
+          <p class="muted">Change access for existing accounts. At least one active admin must remain.</p>
+          <label for="member-select">Member</label>
+          <select id="member-select"></select>
+          <label for="member-role">Role</label>
+          <select id="member-role"><option value="member">Member</option><option value="officer">Officer</option><option value="admin">Admin</option></select>
+          <label for="member-status">Status</label>
+          <select id="member-status"><option value="active">Active</option><option value="suspended">Suspended</option><option value="revoked">Revoked</option></select>
+          <label class="member-toggle"><input id="member-upload" type="checkbox"> Allow bridge uploads</label>
+          <label class="member-toggle"><input id="member-edit" type="checkbox"> Allow officer edits</label>
+          <p id="members-dialog-message" class="message" role="status" aria-live="polite"></p>
+          <button id="save-member" type="button">Save member access</button>
         </dialog>
         <dialog id="raid-dialog" class="pairing-dialog edit-dialog" aria-labelledby="raid-dialog-title">
           <button id="close-raid-dialog" class="dialog-close" type="button" aria-label="Close raid management">×</button>

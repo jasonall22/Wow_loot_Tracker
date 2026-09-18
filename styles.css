@@ -95,6 +95,9 @@ input:focus { border-color: var(--wow-gold); box-shadow: 0 0 0 3px rgba(223, 173
 .edit-dialog select:focus, .edit-dialog textarea:focus { outline: 2px solid var(--wow-gold); }
 .edit-dialog .message { margin: 14px 0 0; }
 .edit-hint { margin: 12px 0 0; font-size: 12px; }
+.member-toggle { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.member-toggle input { width: auto; margin: 0; accent-color: var(--wow-gold); }
+.dashboard-topbar .dashboard-actions { gap: 10px; }
 .danger-button { background: #4b2323; color: #ffe3df; border: 1px solid #a46565; }
 .danger-button:hover { background: #653030; }
 .drop-edit { width: auto; grid-column: 2; grid-row: 2; justify-self: end; margin: 0; padding: 6px 10px; color: var(--wow-gold-bright); font-size: 11px; }

@@ -15,6 +15,10 @@ const pairingCode = document.querySelector('#pairing-code');
 const pairingMessage = document.querySelector('#pairing-message');
 const raidDialog = document.querySelector('#raid-dialog');
 const awardDialog = document.querySelector('#award-dialog');
+const membersDialog = document.querySelector('#members-dialog');
+const memberSelect = document.querySelector('#member-select');
+const membersNotice = document.querySelector('#members-dialog-message');
+let memberRows = [];
 let pairingRequest = null;
 let selectedGuildID = null;
 let guilds = [];
@@ -137,6 +141,7 @@ function saveSession(session) {
 }
 
 function sessionExpired() {
+  if (membersDialog.open) membersDialog.close();
   if (raidDialog.open) raidDialog.close();
   if (awardDialog.open) awardDialog.close();
   state.session = null;
@@ -226,6 +231,7 @@ async function loadGuilds() {
 
 async function openDashboard(entry) {
   if (pairingDialog.open) pairingDialog.close();
+  if (membersDialog.open) membersDialog.close();
   if (raidDialog.open) raidDialog.close();
   if (awardDialog.open) awardDialog.close();
   const details = entry.guild ?? {};
@@ -242,6 +248,7 @@ async function openDashboard(entry) {
   document.querySelector('#dashboard-role').textContent = membership.role ?? 'member';
   document.querySelector('#access-label').textContent = membership.role === 'admin' ? 'Admin' : membership.role === 'officer' ? 'Officer' : 'Member';
   pairingButton.hidden = entry.permissions?.uploadRaids !== true;
+  document.querySelector('#manage-members').hidden = entry.permissions?.manageMembers !== true;
   const raidList = document.querySelector('#raid-list');
   raidList.replaceChildren();
   dashboardMessage.textContent = 'Loading raid archive…';
@@ -564,6 +571,85 @@ document.querySelector('#save-award').addEventListener('click', async () => {
   finally { button.disabled = false; }
 });
 
+function selectedMember() { return memberRows.find(member => member.user_id === memberSelect.value); }
+
+function populateMemberEditor() {
+  const member = selectedMember();
+  document.querySelector('#save-member').disabled = !member;
+  if (!member) return;
+  document.querySelector('#member-role').value = member.role;
+  document.querySelector('#member-status').value = member.status;
+  document.querySelector('#member-upload').checked = member.can_upload === true;
+  document.querySelector('#member-edit').checked = member.can_edit === true;
+}
+
+async function loadAdminMembers() {
+  const response = await portalFetch(`/api/members?guild=${encodeURIComponent(selectedGuildID)}`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.error?.message ?? 'Could not load members.');
+    error.status = response.status;
+    throw error;
+  }
+  memberRows = Array.isArray(data.members) ? data.members : [];
+  const previous = memberSelect.value;
+  memberSelect.replaceChildren();
+  for (const member of memberRows) {
+    const option = document.createElement('option');
+    option.value = member.user_id;
+    option.textContent = member.email || member.user_id;
+    memberSelect.append(option);
+  }
+  if (memberRows.some(member => member.user_id === previous)) memberSelect.value = previous;
+  populateMemberEditor();
+}
+
+document.querySelector('#manage-members').addEventListener('click', async () => {
+  if (!selectedGuildID) return;
+  membersNotice.textContent = 'Loading members…';
+  membersNotice.className = 'message';
+  membersDialog.showModal();
+  try { await loadAdminMembers(); membersNotice.textContent = ''; }
+  catch (error) { membersNotice.textContent = error.message; membersNotice.className = 'message error'; }
+});
+document.querySelector('#close-members-dialog').addEventListener('click', () => membersDialog.close());
+memberSelect.addEventListener('change', populateMemberEditor);
+document.querySelector('#member-role').addEventListener('change', () => {
+  if (document.querySelector('#member-role').value === 'member') document.querySelector('#member-edit').checked = false;
+});
+document.querySelector('#save-member').addEventListener('click', async () => {
+  const member = selectedMember();
+  if (!member || !selectedGuildID) return;
+  const button = document.querySelector('#save-member');
+  button.disabled = true;
+  membersNotice.textContent = '';
+  try {
+    const response = await portalFetch('/api/members', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ guild: selectedGuildID, userId: member.user_id,
+        role: document.querySelector('#member-role').value,
+        status: document.querySelector('#member-status').value,
+        canUpload: document.querySelector('#member-upload').checked,
+        canEdit: document.querySelector('#member-edit').checked }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error?.message ?? 'Could not update member.');
+    try {
+      await loadAdminMembers();
+      membersNotice.textContent = 'Member access saved.';
+      membersNotice.className = 'message';
+    } catch (error) {
+      if (error.status !== 403) throw error;
+      membersDialog.close();
+      dashboard.hidden = true;
+      signedIn.hidden = false;
+      shell.classList.remove('workspace-view');
+      await loadGuilds();
+    }
+  } catch (error) { membersNotice.textContent = error.message; membersNotice.className = 'message error'; }
+  finally { button.disabled = false; }
+});
+
 function showSignedIn() {
   signedOut.hidden = true;
   signedIn.hidden = false;
@@ -572,6 +658,7 @@ function showSignedIn() {
 
 document.querySelector('#back-to-guilds').addEventListener('click', () => {
   if (pairingDialog.open) pairingDialog.close();
+  if (membersDialog.open) membersDialog.close();
   dashboard.hidden = true;
   signedIn.hidden = false;
   shell.classList.remove('workspace-view');
@@ -599,6 +686,7 @@ form.addEventListener('submit', async (event) => {
 
 document.querySelector('#sign-out').addEventListener('click', () => {
   if (pairingDialog.open) pairingDialog.close();
+  if (membersDialog.open) membersDialog.close();
   if (raidDialog.open) raidDialog.close();
   if (awardDialog.open) awardDialog.close();
   state.session = null;
