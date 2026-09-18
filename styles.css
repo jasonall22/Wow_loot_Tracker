@@ -71,6 +71,14 @@ input:focus { border-color: var(--wow-gold); box-shadow: 0 0 0 3px rgba(223, 173
 .loot-column-headings span { float: none; font-size: inherit; line-height: normal; }
 .loot-column-headings span:nth-child(3) { grid-column: 3; }
 .loot-item { width: fit-content; max-width: 100%; margin: 0; padding: 0; display: inline-flex; align-items: center; gap: 10px; background: none; color: var(--wow-ivory); text-align: left; border: 0; border-radius: 4px; font-size: 13px; font-weight: 700; }
+.loot-item.item-q0 strong { color: #9d9d9d; }
+.loot-item.item-q1 strong { color: #fff; }
+.loot-item.item-q2 strong { color: #1eff00; }
+.loot-item.item-q3 strong { color: #0070dd; }
+.loot-item.item-q4 strong { color: #a335ee; }
+.loot-item.item-q5 strong { color: #ff8000; }
+.loot-item.item-q6 strong { color: #e6cc80; }
+.loot-item.item-q7 strong { color: #00ccff; }
 .loot-item:hover { background: none; color: var(--wow-gold-bright); filter: none; }
 .loot-item:hover strong { text-decoration: underline; text-decoration-color: #a383cc; text-underline-offset: 3px; }
 .loot-item:focus-visible { outline: 2px solid var(--wow-gold-bright); outline-offset: 3px; }

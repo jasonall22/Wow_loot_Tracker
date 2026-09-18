@@ -86,7 +86,8 @@ export async function fetchItem(id, fetcher = fetch) {
   const raw = await bounded(`https://nether.wowhead.com/tooltip/item/${id}?dataEnv=5&locale=0`, METADATA_LIMIT, fetcher);
   const data = JSON.parse(new TextDecoder().decode(raw));
   if (!data || typeof data !== 'object' || !/^[a-zA-Z0-9_]{1,100}$/.test(data.icon ?? '')) throw new Error('Invalid item details');
-  return { itemID: id, name: typeof data.name === 'string' ? data.name.slice(0, 200) : '', icon: data.icon.toLowerCase(), lines: tooltipLines(data.tooltip) };
+  const quality = Number.isInteger(data.quality) && data.quality >= 0 && data.quality <= 7 ? data.quality : null;
+  return { itemID: id, name: typeof data.name === 'string' ? data.name.slice(0, 200) : '', quality, icon: data.icon.toLowerCase(), lines: tooltipLines(data.tooltip) };
 }
 
 export async function fetchIcon(icon, fetcher = fetch) {

@@ -38,8 +38,45 @@ let raidDetailSignature = '';
 const collapsedLootBosses = new Set();
 const itemTooltip = document.querySelector('#item-tooltip');
 const itemDetails = new Map();
+const itemQualityRequests = new Map();
+const itemQualityQueue = [];
+let activeItemQualityRequests = 0;
 let tooltipAnchor = null;
 let tooltipSequence = 0;
+
+function loadItemDetails(id) {
+  let pending = itemDetails.get(id);
+  if (!pending) {
+    pending = fetch(`/api/item?id=${id}&format=2`)
+      .then(response => { if (!response.ok) throw new Error('Unavailable'); return response.json(); })
+      .catch((error) => { if (itemDetails.get(id) === pending) itemDetails.delete(id); throw error; });
+    itemDetails.set(id, pending);
+    if (itemDetails.size > 256) itemDetails.delete(itemDetails.keys().next().value);
+  }
+  return pending;
+}
+
+function drainItemQualityQueue() {
+  while (activeItemQualityRequests < 4 && itemQualityQueue.length) {
+    const { id, resolve } = itemQualityQueue.shift();
+    activeItemQualityRequests += 1;
+    loadItemDetails(id).then((details) => {
+      resolve(details.itemID === id && Number.isInteger(details.quality) && details.quality >= 0 && details.quality <= 7 ? details.quality : null);
+    }, () => { itemQualityRequests.delete(id); resolve(null); }).finally(() => {
+      activeItemQualityRequests -= 1;
+      drainItemQualityQueue();
+    });
+  }
+}
+
+function itemQuality(id) {
+  if (!itemQualityRequests.has(id)) {
+    const pending = new Promise((resolve) => { itemQualityQueue.push({ id, resolve }); drainItemQualityQueue(); });
+    itemQualityRequests.set(id, pending);
+    if (itemQualityRequests.size > 2048) itemQualityRequests.delete(itemQualityRequests.keys().next().value);
+  }
+  return itemQualityRequests.get(id);
+}
 
 function hideItemTooltip() {
   tooltipSequence += 1;
@@ -69,13 +106,7 @@ async function showItemTooltip(anchor, id, name) {
   positionItemTooltip(anchor);
   const sequence = tooltipSequence;
   try {
-    let pending = itemDetails.get(id);
-    if (!pending) {
-      pending = fetch(`/api/item?id=${id}&format=2`).then(response => { if (!response.ok) throw new Error('Unavailable'); return response.json(); });
-      itemDetails.set(id, pending);
-      if (itemDetails.size > 256) itemDetails.delete(itemDetails.keys().next().value);
-    }
-    const details = await pending;
+    const details = await loadItemDetails(id);
     if (tooltipSequence !== sequence || tooltipAnchor !== anchor) return;
     itemTooltip.replaceChildren();
     const lines = details.itemID === id && Array.isArray(details.lines) ? details.lines.slice(0, 40) : [];
@@ -568,6 +599,12 @@ function renderDropRow(container, drop) {
       title.addEventListener('click', () => showItemTooltip(title, id, name));
     }
     const label = document.createElement('strong'); label.textContent = name; title.append(label);
+    if (validID) itemQuality(id).then((quality) => {
+      if (quality === null) return;
+      title.className = `loot-item item-q${quality}`;
+      const qualityNames = ['Poor', 'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary', 'Artifact', 'Heirloom'];
+      title.setAttribute('aria-label', `${qualityNames[quality]} item: ${name}. Show item details`);
+    });
     const winner = document.createElement('span'); winner.className = 'loot-winner';
     const winnerName = typeof drop.winner === 'string' ? drop.winner.trim() : '';
     winner.textContent = winnerName || (drop.award_type ? '—' : 'Unawarded');

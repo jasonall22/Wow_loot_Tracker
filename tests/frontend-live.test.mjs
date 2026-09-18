@@ -74,8 +74,8 @@ test('an open raid detail refreshes a removed drop without a user click', async 
     if (url.pathname === '/api/item') {
       assert.equal(url.searchParams.get('format'), '2');
       return Response.json(url.searchParams.get('id') === '32337'
-        ? { itemID: 32337, lines: ['Removed', '+10 Intellect'] }
-        : { itemID: 32336, lines: [
+        ? { itemID: 32337, quality: 3, lines: ['Removed', '+10 Intellect'] }
+        : { itemID: 32336, quality: 4, lines: [
           [{ text: 'Kept', quality: 'q4' }], [{ text: '+20 Strength', quality: 'q2' }],
         ] });
     }
@@ -135,6 +135,9 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   assert.equal(context.sampleLoot.children[2].children[2].textContent, 'Guild');
   const itemButton = lootRows()[0].children[0];
   assert.equal(itemButton.children[0].src, '/api/item?id=32336&icon=1');
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(itemButton.className, 'loot-item item-q4');
+  assert.equal(lootGroups()[1].children[1].children[1].children[0].className, 'loot-item item-q3');
   itemButton.listeners.pointerenter();
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(get('#item-tooltip').hidden, false);
