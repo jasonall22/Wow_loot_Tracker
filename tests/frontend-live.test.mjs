@@ -35,7 +35,7 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   const elements = new Map();
   const get = (selector) => elements.get(selector) ?? elements.set(selector, new Element()).get(selector);
   const lootGroups = () => get('#drop-list').children;
-  const lootRows = () => lootGroups().flatMap((group) => group.children[1].children);
+  const lootRows = () => lootGroups().flatMap((group) => group.children[1].children.slice(1));
   for (const selector of ['#signed-in', '#dashboard', '#raid-detail']) get(selector).hidden = true;
   const storage = new Map([['apoc_session', JSON.stringify({ access_token: 'test-access-token', expires_at: 4102444800 })]]);
   const intervals = [];
@@ -45,7 +45,7 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   const raid = { id: 'raid-1', name: 'Tonight', revision: 2, closed_at: null };
   const adminActions = [];
   const attendance = [
-    { character_key: 'player', name: 'Player', present: true },
+    { character_key: 'player', name: 'Player', class: 'PRIEST', present: true },
     ...Array.from({ length: 199 }, (_, index) => ({ character_key: `raider-${index + 1}`, name: `Raider ${index + 1}`, present: index > 1 })),
     { character_key: 'late-arrival', name: 'Late arrival', present: true },
   ];
@@ -120,8 +120,19 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   assert.equal(lootGroups().length, 2);
   assert.equal(lootGroups()[0].children[0].children[0].textContent, 'Boss');
   assert.equal(lootGroups()[0].children[0].children[1].textContent, '2 items');
-  assert.equal(lootGroups()[0].children[1].children.length, 2);
+  assert.equal(lootGroups()[0].children[1].children.length, 3);
   assert.equal(lootGroups()[1].children[0].children[0].textContent, 'Trash');
+  assert.deepEqual(lootGroups()[0].children[1].children[0].children.map((column) => column.textContent), ['Item', 'Winner', 'Award']);
+  assert.equal(lootRows()[0].children[1].textContent, 'Off-roster');
+  assert.equal(lootRows()[0].children[1].className, 'loot-winner');
+  assert.equal(lootRows()[0].children[2].textContent, 'MS');
+  context.sampleLoot = new Element();
+  new Script("renderDropRow(sampleLoot, { item_name: 'For Player', winner: 'Player-Realm', award_type: 'OS' }); renderDropRow(sampleLoot, { item_name: 'Dust', award_type: 'DE' }); renderDropRow(sampleLoot, { item_name: 'Banked', award_type: 'GB' });").runInContext(context);
+  assert.equal(context.sampleLoot.children[0].children[1].className, 'loot-winner class-priest');
+  assert.equal(context.sampleLoot.children[0].children[2].textContent, 'OS');
+  assert.equal(context.sampleLoot.children[1].children[1].textContent, '—');
+  assert.equal(context.sampleLoot.children[1].children[2].textContent, 'DE');
+  assert.equal(context.sampleLoot.children[2].children[2].textContent, 'Guild');
   const itemButton = lootRows()[0].children[0];
   assert.equal(itemButton.children[0].src, '/api/item?id=32336&icon=1');
   itemButton.listeners.pointerenter();
@@ -130,7 +141,7 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   assert.equal(get('#item-tooltip').children[0].children[0].className, 'q4');
   assert.equal(get('#item-tooltip').children[1].children[0].textContent, '+20 Strength');
   assert.equal(get('#item-tooltip').style.left, '222px');
-  const legacyButton = lootGroups()[1].children[1].children[0].children[0];
+  const legacyButton = lootGroups()[1].children[1].children[1].children[0];
   legacyButton.listeners.pointerenter();
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(get('#item-tooltip').children[0].children[0].textContent, 'Removed');
@@ -167,7 +178,9 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   await get('#save-award').listeners.click();
   assert.equal(adminActions.at(-1).action, 'edit_drop');
   assert.equal(adminActions.at(-1).winner, 'Player');
-  assert.equal(lootRows()[0].children[1].textContent, 'Awarded to Player · MS');
+  assert.equal(lootRows()[0].children[1].textContent, 'Player');
+  assert.equal(lootRows()[0].children[1].className, 'loot-winner class-priest');
+  assert.equal(lootRows()[0].children[2].textContent, 'MS');
   get('#manage-raid').listeners.click();
   await get('#delete-raid').listeners.click();
   assert.equal(adminActions.at(-1).action, 'delete_raid');

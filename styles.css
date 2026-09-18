@@ -66,13 +66,31 @@ input:focus { border-color: var(--wow-gold); box-shadow: 0 0 0 3px rgba(223, 173
   .dashboard-actions { width: 100%; justify-content: space-between; }
 }
 
-.loot-row { grid-template-columns: minmax(0, 1fr) auto; }
+.loot-row, .loot-column-headings { display: grid; grid-template-columns: minmax(0, 2fr) minmax(100px, 1fr) 66px 84px; align-items: center; gap: 12px; }
+.loot-column-headings { padding: 8px 0; color: #8d9bad; font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.loot-column-headings span { float: none; font-size: inherit; line-height: normal; }
+.loot-column-headings span:nth-child(3) { grid-column: 3; }
 .loot-item { width: fit-content; max-width: 100%; margin: 0; padding: 0; display: inline-flex; align-items: center; gap: 10px; background: none; color: var(--wow-ivory); text-align: left; border: 0; border-radius: 4px; font-size: 13px; font-weight: 700; }
 .loot-item:hover { background: none; color: var(--wow-gold-bright); filter: none; }
 .loot-item:hover strong { text-decoration: underline; text-decoration-color: #a383cc; text-underline-offset: 3px; }
 .loot-item:focus-visible { outline: 2px solid var(--wow-gold-bright); outline-offset: 3px; }
 .loot-icon { flex: none; width: 38px; height: 38px; object-fit: cover; border: 1px solid #8b7145; border-radius: 5px; background: #0e1521; }
-.loot-row > span { align-self: center; }
+.loot-row > span { min-width: 0; align-self: center; font-size: 12px; }
+.loot-row .loot-winner { color: #bac5d2; overflow-wrap: anywhere; }
+.loot-row .loot-winner.class-warrior { color: #c69b6d; }
+.loot-row .loot-winner.class-paladin { color: #f48cba; }
+.loot-row .loot-winner.class-hunter { color: #aad372; }
+.loot-row .loot-winner.class-rogue { color: #fff468; }
+.loot-row .loot-winner.class-priest { color: #fff; }
+.loot-row .loot-winner.class-shaman { color: #0070dd; }
+.loot-row .loot-winner.class-mage { color: #3fc7eb; }
+.loot-row .loot-winner.class-warlock { color: #8788ee; }
+.loot-row .loot-winner.class-druid { color: #ff7c0a; }
+.loot-row .loot-award-type { justify-self: start; padding: 4px 7px; border: 1px solid #3a485c; border-radius: 5px; color: #9daabd; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.loot-row .loot-award-type.type-ms { color: #a9e0c9; border-color: #426454; }
+.loot-row .loot-award-type.type-os { color: #9ec6f4; border-color: #395d81; }
+.loot-row .loot-award-type.type-de { color: #d5b6f4; border-color: #685079; }
+.loot-row .loot-award-type.type-gb { color: var(--wow-gold-bright); border-color: #806a45; }
 .item-tooltip { position: fixed; z-index: 1000; width: 340px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); overflow: auto; overflow-wrap: anywhere; padding: 15px 17px; border: 1px solid #857096; border-radius: 6px; background: #080d19; box-shadow: 0 12px 36px #000b, inset 0 0 0 1px #ffffff0b; color: #f1f1f1; font: 14px/1.5 'Segoe UI', system-ui, sans-serif; pointer-events: none; }
 .item-tooltip p { margin: 0; }
 .item-tooltip .tooltip-line { min-height: 1.35em; white-space: pre-wrap; }
@@ -102,8 +120,7 @@ input:focus { border-color: var(--wow-gold); box-shadow: 0 0 0 3px rgba(223, 173
 .dashboard-topbar .dashboard-actions { gap: 10px; }
 .danger-button { background: #4b2323; color: #ffe3df; border: 1px solid #a46565; }
 .danger-button:hover { background: #653030; }
-.drop-edit { width: auto; grid-column: 2; grid-row: 2; justify-self: end; margin: 0; padding: 6px 10px; color: var(--wow-gold-bright); font-size: 11px; }
-.loot-row > em { grid-column: 1; }
+.drop-edit { width: auto; grid-column: 4; justify-self: end; margin: 0; padding: 6px 10px; color: var(--wow-gold-bright); font-size: 11px; white-space: nowrap; }
 .loot-boss-group { min-width: 0; border-bottom: 1px solid #354052; }
 .loot-boss-toggle { width: 100%; display: flex; align-items: center; gap: 12px; margin: 0; padding: 13px 0; border: 0; border-radius: 0; background: transparent; color: var(--wow-gold-bright); text-align: left; }
 .loot-boss-toggle:hover { background: #ffffff0b; }
@@ -113,6 +130,14 @@ input:focus { border-color: var(--wow-gold); box-shadow: 0 0 0 3px rgba(223, 173
 .loot-boss-toggle .loot-boss-chevron { color: var(--wow-gold-bright); font-size: 16px; transition: transform .15s ease; }
 .loot-boss-toggle[aria-expanded="false"] .loot-boss-chevron { transform: rotate(-90deg); }
 .loot-boss-items[hidden] { display: none; }
-.loot-boss-items .detail-row:first-child { border-top: 1px solid #263449; }
-.loot-boss-items .detail-row:last-child { border-bottom: 0; }
+.loot-boss-items .detail-row { border-top: 1px solid #263449; border-bottom: 0; }
+@media (max-width: 1150px) {
+  .loot-column-headings { display: none; }
+  .loot-row { grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 12px; }
+  .loot-row .loot-item { grid-column: 1 / -1; }
+  .loot-row .loot-winner { grid-column: 1; }
+  .loot-row .loot-winner::before { content: 'Winner'; display: block; margin-bottom: 3px; color: #8d9bad; font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+  .loot-row .loot-award-type { grid-column: 2; }
+  .drop-edit { grid-column: 3; }
+}
 @media (max-width: 600px) { .dashboard-topbar { align-items: center; } .pairing-trigger { max-width: 60%; white-space: normal; } }

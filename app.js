@@ -497,6 +497,19 @@ function renderDetailList(container, rows, fields) {
   }
 }
 
+const WOW_CLASSES = new Set(['WARRIOR', 'PALADIN', 'HUNTER', 'ROGUE', 'PRIEST', 'SHAMAN', 'MAGE', 'WARLOCK', 'DRUID']);
+
+function winnerClass(winner) {
+  if (!winner) return null;
+  const name = winner.trim().toLocaleLowerCase();
+  const exact = raidMembers.find((member) => String(member.name || '').trim().toLocaleLowerCase() === name);
+  const shortName = name.split('-')[0];
+  const matches = exact ? [exact] : raidMembers.filter((member) => String(member.name || '').trim().toLocaleLowerCase().split('-')[0] === shortName);
+  if (matches.length !== 1) return null;
+  const className = String(matches[0].class || '').trim().toUpperCase().replace(/\s+/g, '');
+  return WOW_CLASSES.has(className) ? className.toLowerCase() : null;
+}
+
 function renderDropList(container, drops) {
   // Keep the encounter order supplied by the raid record, while placing all
   // drops from the same boss together and retaining their order within it.
@@ -523,6 +536,11 @@ function renderDropList(container, drops) {
     setExpanded(!collapsedLootBosses.has(bossName));
     toggle.addEventListener('click', () => setExpanded(body.hidden));
     group.append(toggle, body);
+    const headings = document.createElement('div'); headings.className = 'loot-column-headings';
+    for (const heading of ['Item', 'Winner', 'Award']) {
+      const column = document.createElement('span'); column.textContent = heading; headings.append(column);
+    }
+    body.append(headings);
     container.append(group);
     for (const drop of bossDrops) renderDropRow(body, drop);
   }
@@ -550,9 +568,17 @@ function renderDropRow(container, drop) {
       title.addEventListener('click', () => showItemTooltip(title, id, name));
     }
     const label = document.createElement('strong'); label.textContent = name; title.append(label);
-    const award = document.createElement('em');
-    award.textContent = drop.winner ? `Awarded to ${drop.winner}${drop.award_type ? ` · ${drop.award_type}` : ''}` : drop.award_type || 'Unawarded';
-    item.append(title, award);
+    const winner = document.createElement('span'); winner.className = 'loot-winner';
+    const winnerName = typeof drop.winner === 'string' ? drop.winner.trim() : '';
+    winner.textContent = winnerName || (drop.award_type ? '—' : 'Unawarded');
+    const className = winnerClass(winnerName);
+    if (className) winner.className += ` class-${className}`;
+    const awardType = document.createElement('span'); awardType.className = 'loot-award-type';
+    const typeLabels = { MS: 'MS', OS: 'OS', DE: 'DE', GB: 'Guild', UNKNOWN: 'Other' };
+    const type = typeof drop.award_type === 'string' ? drop.award_type.toUpperCase() : '';
+    awardType.textContent = typeLabels[type] || '—';
+    if (['MS', 'OS', 'DE', 'GB'].includes(type)) awardType.className += ` type-${type.toLowerCase()}`;
+    item.append(title, winner, awardType);
     if (canManageRaids && drop.id) {
       const edit = document.createElement('button');
       edit.className = 'drop-edit secondary'; edit.type = 'button'; edit.textContent = 'Edit award';
