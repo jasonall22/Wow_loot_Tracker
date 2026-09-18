@@ -710,10 +710,11 @@ function updateInviteSetup() {
 
 document.querySelector('#invite-password-form').addEventListener('submit', async (event) => {
   event.preventDefault();
+  const inviteForm = event.currentTarget;
   const passwordSaved = sessionStorage.getItem('apoc_invite_password_saved') === '1';
   const password = document.querySelector('#invite-password').value;
   const confirm = document.querySelector('#invite-password-confirm').value;
-  const submit = event.currentTarget.querySelector('button');
+  const submit = inviteForm.querySelector('button');
   const notice = document.querySelector('#invite-setup-message');
   if (!passwordSaved && (password.length < 12 || password !== confirm)) {
     notice.textContent = 'Use at least 12 characters, and make sure both passwords match.';
@@ -739,7 +740,7 @@ document.querySelector('#invite-password-form').addEventListener('submit', async
     }
     notice.textContent = 'Joining your guild…';
     await acceptPendingInvites();
-    event.currentTarget.reset();
+    inviteForm.reset();
     sessionStorage.removeItem('apoc_invite_setup');
     sessionStorage.removeItem('apoc_invite_password_saved');
     updateInviteSetup();
