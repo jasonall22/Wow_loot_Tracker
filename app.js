@@ -2,11 +2,13 @@ const state = { config: null, session: null };
 const shell = document.querySelector('.shell');
 const signedOut = document.querySelector('#signed-out');
 const signedIn = document.querySelector('#signed-in');
+const inviteSetup = document.querySelector('#invite-setup');
 const dashboard = document.querySelector('#dashboard');
 const raidDetail = document.querySelector('#raid-detail');
 const form = document.querySelector('#sign-in-form');
 const message = document.querySelector('#message');
 const guildList = document.querySelector('#guild-list');
+const guildMessage = document.querySelector('#guild-message');
 const dashboardMessage = document.querySelector('#dashboard-message');
 const pairingButton = document.querySelector('#create-pairing');
 const pairingDialog = document.querySelector('#pairing-dialog');
@@ -150,7 +152,10 @@ function sessionExpired() {
   canManageRaids = false;
   sessionStorage.removeItem('apoc_session');
   sessionStorage.removeItem('apoc_access_token');
+  sessionStorage.removeItem('apoc_invite_setup');
+  sessionStorage.removeItem('apoc_invite_password_saved');
   signedIn.hidden = true;
+  inviteSetup.hidden = true;
   dashboard.hidden = true;
   raidDetail.hidden = true;
   signedOut.hidden = false;
@@ -187,6 +192,13 @@ async function portalFetch(url, options = {}) {
   });
   if (response.status === 401 && state.session?.access_token === accessToken) sessionExpired();
   return response;
+}
+
+async function acceptPendingInvites() {
+  const response = await portalFetch('/api/accept-invite', { method: 'POST' });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error?.message ?? 'Could not finish your guild invitation.');
+  return data;
 }
 
 async function adminEdit(action, fields = {}) {
@@ -606,11 +618,33 @@ async function loadAdminMembers() {
 
 document.querySelector('#manage-members').addEventListener('click', async () => {
   if (!selectedGuildID) return;
+  document.querySelector('#invite-member-message').textContent = '';
   membersNotice.textContent = 'Loading members…';
   membersNotice.className = 'message';
   membersDialog.showModal();
   try { await loadAdminMembers(); membersNotice.textContent = ''; }
   catch (error) { membersNotice.textContent = error.message; membersNotice.className = 'message error'; }
+});
+document.querySelector('#invite-member-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!selectedGuildID) return;
+  const inviteForm = event.currentTarget;
+  const submit = inviteForm.querySelector('button');
+  const notice = document.querySelector('#invite-member-message');
+  submit.disabled = true;
+  notice.textContent = 'Preparing invitation…';
+  notice.className = 'message';
+  try {
+    const response = await portalFetch('/api/invite', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ guild: selectedGuildID, email: document.querySelector('#invite-member-email').value.trim() }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error?.message ?? 'Could not send the invitation.');
+    notice.textContent = data.status === 'existing_account' ? data.message : 'Invitation sent. They can set their own password from the email link.';
+    inviteForm.reset();
+  } catch (error) { notice.textContent = error.message; notice.className = 'message error'; }
+  finally { submit.disabled = false; }
 });
 document.querySelector('#close-members-dialog').addEventListener('click', () => membersDialog.close());
 memberSelect.addEventListener('change', populateMemberEditor);
@@ -650,11 +684,69 @@ document.querySelector('#save-member').addEventListener('click', async () => {
   finally { button.disabled = false; }
 });
 
-function showSignedIn() {
+function showSignedIn(checkInvites = false) {
+  inviteSetup.hidden = true;
   signedOut.hidden = true;
   signedIn.hidden = false;
-  loadGuilds().catch((error) => setMessage(error.message, 'error'));
+  guildMessage.textContent = '';
+  guildMessage.className = 'message';
+  const beforeGuilds = checkInvites ? acceptPendingInvites().catch((error) => {
+    guildMessage.textContent = error.message;
+    guildMessage.className = 'message error';
+  }) : Promise.resolve();
+  beforeGuilds.then(() => loadGuilds()).catch((error) => {
+    guildMessage.textContent = error.message;
+    guildMessage.className = 'message error';
+  });
 }
+
+function updateInviteSetup() {
+  const saved = sessionStorage.getItem('apoc_invite_password_saved') === '1';
+  const fields = document.querySelector('#invite-password-fields');
+  fields.hidden = saved;
+  for (const input of fields.querySelectorAll('input')) input.required = !saved;
+  document.querySelector('#invite-join-button').textContent = saved ? 'Finish joining guild →' : 'Join guild →';
+}
+
+document.querySelector('#invite-password-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const passwordSaved = sessionStorage.getItem('apoc_invite_password_saved') === '1';
+  const password = document.querySelector('#invite-password').value;
+  const confirm = document.querySelector('#invite-password-confirm').value;
+  const submit = event.currentTarget.querySelector('button');
+  const notice = document.querySelector('#invite-setup-message');
+  if (!passwordSaved && (password.length < 12 || password !== confirm)) {
+    notice.textContent = 'Use at least 12 characters, and make sure both passwords match.';
+    notice.className = 'message error';
+    return;
+  }
+  submit.disabled = true;
+  notice.textContent = passwordSaved ? 'Joining your guild…' : 'Setting your password…';
+  notice.className = 'message';
+  try {
+    if (!passwordSaved) {
+      const config = await getConfig();
+      const accessToken = await currentToken();
+      const response = await fetch(`${config.url}/auth/v1/user`, {
+        method: 'PUT',
+        headers: { apikey: config.publishableKey, Authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ password }), cache: 'no-store', redirect: 'error',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error_description ?? data.msg ?? 'Could not set your password.');
+      sessionStorage.setItem('apoc_invite_password_saved', '1');
+      updateInviteSetup();
+    }
+    notice.textContent = 'Joining your guild…';
+    await acceptPendingInvites();
+    event.currentTarget.reset();
+    sessionStorage.removeItem('apoc_invite_setup');
+    sessionStorage.removeItem('apoc_invite_password_saved');
+    updateInviteSetup();
+    showSignedIn();
+  } catch (error) { notice.textContent = error.message; notice.className = 'message error'; }
+  finally { submit.disabled = false; }
+});
 
 document.querySelector('#back-to-guilds').addEventListener('click', () => {
   if (pairingDialog.open) pairingDialog.close();
@@ -676,7 +768,7 @@ form.addEventListener('submit', async (event) => {
     });
     saveSession(session);
     setMessage('');
-    showSignedIn();
+    showSignedIn(true);
   } catch (error) {
     setMessage(error.message, 'error');
   } finally {
@@ -695,17 +787,50 @@ document.querySelector('#sign-out').addEventListener('click', () => {
   canManageRaids = false;
   sessionStorage.removeItem('apoc_session');
   sessionStorage.removeItem('apoc_access_token');
+  sessionStorage.removeItem('apoc_invite_setup');
+  sessionStorage.removeItem('apoc_invite_password_saved');
   signedIn.hidden = true;
+  inviteSetup.hidden = true;
   signedOut.hidden = false;
   shell.classList.remove('workspace-view');
   form.reset();
 });
 
+function receiveInviteLink() {
+  if (typeof window === 'undefined') return false;
+  const hash = window.location?.hash;
+  if (!hash) return false;
+  const params = new URLSearchParams(hash.slice(1));
+  if (params.get('type') !== 'invite' && !params.has('error')) return false;
+  window.history?.replaceState(null, '', window.location.pathname + window.location.search);
+  const accessToken = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  if (params.get('type') !== 'invite' || !accessToken || !refreshToken) {
+    setMessage('This invitation link is invalid or expired. Ask your guild admin for a new one.', 'error');
+    return true;
+  }
+  saveSession({ access_token: accessToken, refresh_token: refreshToken,
+    expires_in: Number(params.get('expires_in') ?? 3600) });
+  sessionStorage.setItem('apoc_invite_setup', '1');
+  sessionStorage.removeItem('apoc_invite_password_saved');
+  updateInviteSetup();
+  signedOut.hidden = true;
+  signedIn.hidden = true;
+  inviteSetup.hidden = false;
+  return true;
+}
+
+const inviteLinkHandled = receiveInviteLink();
 const existingSession = sessionStorage.getItem('apoc_session');
 const existingToken = sessionStorage.getItem('apoc_access_token');
-if (existingSession || existingToken) {
+if (!inviteLinkHandled && (existingSession || existingToken)) {
   try { state.session = existingSession ? JSON.parse(existingSession) : { access_token: existingToken }; }
   catch { state.session = null; }
-  if (state.session?.access_token) showSignedIn();
+  if (state.session?.access_token && sessionStorage.getItem('apoc_invite_setup') === '1') {
+    updateInviteSetup();
+    signedOut.hidden = true;
+    signedIn.hidden = true;
+    inviteSetup.hidden = false;
+  } else if (state.session?.access_token) showSignedIn();
   else { sessionStorage.removeItem('apoc_session'); sessionStorage.removeItem('apoc_access_token'); }
 }

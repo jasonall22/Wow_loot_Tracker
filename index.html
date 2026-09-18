@@ -34,8 +34,25 @@
           <p class="eyebrow">YOUR GUILDS</p>
           <h2>Choose a guild</h2>
           <p class="muted">Your access is checked against current membership.</p>
+          <p id="guild-message" class="message" role="status" aria-live="polite"></p>
           <div id="guild-list" class="guild-list"></div>
           <button id="sign-out" class="secondary" type="button">Sign out</button>
+        </div>
+        <div id="invite-setup" hidden>
+          <img class="logo" src="/assets/apoc-logo.png" alt="APOC crest">
+          <p class="eyebrow">GUILD INVITATION</p>
+          <h2>Set your password</h2>
+          <p class="muted">Your invitation link verified your email. Choose a password to finish joining your guild.</p>
+          <form id="invite-password-form">
+            <div id="invite-password-fields">
+              <label for="invite-password">Password</label>
+              <input id="invite-password" type="password" autocomplete="new-password" minlength="12" required>
+              <label for="invite-password-confirm">Confirm password</label>
+              <input id="invite-password-confirm" type="password" autocomplete="new-password" minlength="12" required>
+            </div>
+            <button type="submit" id="invite-join-button">Join guild <span>→</span></button>
+          </form>
+          <p id="invite-setup-message" class="message" role="status" aria-live="polite"></p>
         </div>
         <div id="dashboard" hidden>
           <div class="dashboard-topbar">
@@ -100,7 +117,15 @@
           <button id="close-members-dialog" class="dialog-close" type="button" aria-label="Close member management">×</button>
           <p class="eyebrow">GUILD ADMINISTRATION</p>
           <h2 id="members-dialog-title">Manage members</h2>
-          <p class="muted">Change access for existing accounts. At least one active admin must remain.</p>
+          <p class="muted">Invite a new member, or change access for an existing account. At least one active admin must remain.</p>
+          <form id="invite-member-form">
+            <label for="invite-member-email">Invite by email</label>
+            <input id="invite-member-email" type="email" autocomplete="off" maxlength="254" required>
+            <button type="submit">Send member invitation</button>
+          </form>
+          <p class="muted edit-hint">New accounts start as members. You can change their role after they join.</p>
+          <p id="invite-member-message" class="message" role="status" aria-live="polite"></p>
+          <div class="member-divider"></div>
           <label for="member-select">Member</label>
           <select id="member-select"></select>
           <label for="member-role">Role</label>

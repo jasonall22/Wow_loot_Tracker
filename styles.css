@@ -97,6 +97,7 @@ input:focus { border-color: var(--wow-gold); box-shadow: 0 0 0 3px rgba(223, 173
 .edit-hint { margin: 12px 0 0; font-size: 12px; }
 .member-toggle { display: flex; align-items: center; gap: 10px; font-size: 14px; }
 .member-toggle input { width: auto; margin: 0; accent-color: var(--wow-gold); }
+.member-divider { height: 1px; margin: 26px 0 8px; background: #4c4b49; }
 .dashboard-topbar .dashboard-actions { gap: 10px; }
 .danger-button { background: #4b2323; color: #ffe3df; border: 1px solid #a46565; }
 .danger-button:hover { background: #653030; }
