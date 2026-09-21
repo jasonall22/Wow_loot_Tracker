@@ -42,6 +42,7 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   const intervals = [];
   let dropReads = 0;
   let deleted = false;
+  let purged = false;
   let corrected = false;
   const raid = { id: 'raid-1', name: 'Tonight', revision: 2, closed_at: null };
   const adminActions = [];
@@ -56,7 +57,7 @@ test('an open raid detail refreshes a removed drop without a user click', async 
     const view = url.searchParams.get('view');
     if (view === 'guilds') return Response.json({ guilds: [{ guild: { id: 'guild-1', name: 'APOC' }, membership: { role: 'admin' }, permissions: { uploadRaids: true, manageRaids: true } }] });
     if (view === 'raids') return Response.json({ raids: deleted ? [] : [raid] });
-    if (view === 'archived_raids') return Response.json({ archived_raids: deleted
+    if (view === 'archived_raids') return Response.json({ archived_raids: deleted && !purged
       ? [{ ...raid, deleted_at: '2026-09-18T00:00:00Z' }] : [] });
     if (view === 'drops') {
       dropReads += 1;
@@ -88,6 +89,7 @@ test('an open raid detail refreshes a removed drop without a user click', async 
       const body = JSON.parse(options.body); adminActions.push(body);
       if (body.action === 'delete_raid') deleted = true;
       if (body.action === 'restore_raid') deleted = false;
+      if (body.action === 'purge_raid') { deleted = true; purged = true; }
       if (body.action === 'edit_drop') corrected = true;
       return Response.json({ status: 'ok', name: body.name ?? null });
     }
@@ -216,6 +218,18 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   assert.equal(adminActions.at(-1).action, 'restore_raid');
   assert.equal(get('#raid-count').textContent, '1');
   assert.equal(get('#archived-raid-count').textContent, '0 raids');
+  deleted = true;
+  await intervals[0].callback();
+  assert.equal(get('#archived-raid-list').children.length, 1);
+  const permanentlyDelete = get('#archived-raid-list').children[0].children[1].children[1];
+  context.window.confirm = () => false;
+  await permanentlyDelete.listeners.click();
+  assert.notEqual(adminActions.at(-1).action, 'purge_raid');
+  assert.equal(get('#archived-raid-count').textContent, '1 raid');
+  context.window.confirm = () => true;
+  await permanentlyDelete.listeners.click();
+  assert.equal(adminActions.at(-1).action, 'purge_raid');
+  assert.equal(get('#archived-raid-count').textContent, '0 raids');
 });
 
 test('raid archive loads older pages and refreshes the visible range', async () => {
@@ -286,6 +300,7 @@ test('overview cards sit beside guild identity and archive stays below', () => {
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.dashboard-heading\s*\{\s*flex-wrap:\s*wrap/);
   assert.match(html, /id="archived-raids"[\s\S]*id="archived-raid-list"/);
   assert.match(appSource, /adminEditRaid\(guildID, raid\.id, 'restore_raid'\)/);
+  assert.match(appSource, /adminEditRaid\(guildID, raid\.id, 'purge_raid'\)/);
 });
 
 test('live portal refreshes the signed-in session before polling', async () => {

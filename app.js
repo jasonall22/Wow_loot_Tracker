@@ -450,7 +450,29 @@ async function loadArchivedRaids(guildID, quiet = false) {
           archivedMessage.className = 'message error';
         } finally { restore.disabled = false; }
       });
-      actions.append(restore); row.append(identity, actions); archivedRaidList.append(row);
+      const permanentlyDelete = document.createElement('button');
+      permanentlyDelete.type = 'button'; permanentlyDelete.className = 'danger-button';
+      permanentlyDelete.textContent = 'Delete permanently';
+      permanentlyDelete.setAttribute('aria-label', `Permanently delete ${raid.name}`);
+      permanentlyDelete.addEventListener('click', async () => {
+        const confirmed = window.confirm(`Permanently delete "${raid.name}"?\n\nThis removes all loot and attendance data. It cannot be undone.`);
+        if (!confirmed) return;
+        restore.disabled = true; permanentlyDelete.disabled = true;
+        archivedMessage.textContent = `Permanently deleting ${raid.name}…`;
+        archivedMessage.className = 'message';
+        try {
+          await adminEditRaid(guildID, raid.id, 'purge_raid');
+          archivedRaidSignature = '';
+          await loadArchivedRaids(guildID);
+          dashboardMessage.textContent = `${raid.name} was permanently deleted.`;
+          dashboardMessage.className = 'message';
+        } catch (error) {
+          archivedMessage.textContent = error.message;
+          archivedMessage.className = 'message error';
+          restore.disabled = false; permanentlyDelete.disabled = false;
+        }
+      });
+      actions.append(restore, permanentlyDelete); row.append(identity, actions); archivedRaidList.append(row);
     }
   } catch (error) {
     if (selectedGuildID === guildID && !dashboard.hidden && request === archivedRaidRequest) {

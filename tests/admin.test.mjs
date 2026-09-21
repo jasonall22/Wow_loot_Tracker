@@ -48,6 +48,7 @@ test('admin edits accept only exact, bounded raid and award fields', async () =>
     { ...body, role: 'admin' }, { ...body, name: '' }, { ...body, raid: 'wrong' },
     { guild: GUILD, raid: RAID, action: 'delete_raid', extra: true },
     { guild: GUILD, raid: RAID, action: 'restore_raid', extra: true },
+    { guild: GUILD, raid: RAID, action: 'purge_raid', extra: true },
     { guild: GUILD, raid: RAID, action: 'edit_drop', dropId: 'drop', winner: 'Player', awardType: null, awardNote: '' },
     { guild: GUILD, raid: RAID, action: 'edit_drop', dropId: 'drop', winner: null, awardType: 'MS', awardNote: '' },
     { guild: GUILD, raid: RAID, action: 'edit_drop', dropId: 'drop', winner: null, awardType: 'BAD', awardNote: '' },
@@ -56,6 +57,7 @@ test('admin edits accept only exact, bounded raid and award fields', async () =>
   assert.deepEqual(clear.payload, { dropId: 'drop', winner: null, awardType: null, awardNote: '' });
   assert.deepEqual(parseAdminBody({ guild: GUILD, raid: RAID, action: 'delete_raid' }).payload, {});
   assert.deepEqual(parseAdminBody({ guild: GUILD, raid: RAID, action: 'restore_raid' }).payload, {});
+  assert.deepEqual(parseAdminBody({ guild: GUILD, raid: RAID, action: 'purge_raid' }).payload, {});
 });
 
 test('database permission and missing-raid statuses stay private', async () => {
@@ -70,14 +72,21 @@ test('raid projection shows admin name while keeping bridge source name separate
   assert.equal(raidProjection({ name: 'Bridge name', display_name: null }).name, 'Bridge name');
 });
 
-test('admin SQL retains data on delete, checks current admin membership, and records loot corrections', async () => {
+test('admin SQL archives first and permanently deletes only into an ingestion tombstone', async () => {
   const sql = await readFile(new URL('../db/admin-edits.sql', import.meta.url), 'utf8');
+  const ingestion = await readFile(new URL('../db/ingestion-tombstones.sql', import.meta.url), 'utf8');
   assert.match(sql, /deleted_at = now\(\)/);
   assert.match(sql, /p_action = 'restore_raid'[\s\S]*deleted_at = null/);
   assert.match(sql, /'raid', p_raid_id::text, 'restored'/);
-  assert.doesNotMatch(sql, /delete from public\.apoc_raids/i);
+  assert.match(sql, /p_action = 'purge_raid'[\s\S]*v_raid\.deleted_at is null[\s\S]*insert into public\.apoc_raid_tombstones[\s\S]*delete from public\.apoc_raids as r[\s\S]*r\.deleted_at is not null/i);
+  assert.match(sql, /p_action = 'purge_raid'[\s\S]*from public\.apoc_raid_tombstones as t[\s\S]*return jsonb_build_object\('status', 'ok'\)/i);
+  assert.match(sql, /'raid', p_raid_id::text, 'purged'/);
   assert.match(sql, /m\.status = 'active' and m\.role = 'admin' for share/);
   assert.match(sql, /insert into public\.apoc_drop_corrections/);
   assert.match(sql, /security invoker/);
   assert.match(sql, /grant execute on function public\.admin_apoc_edit[\s\S]*to service_role/);
+  assert.match(ingestion, /enable row level security/);
+  assert.match(ingestion, /revoke all on public\.apoc_raid_tombstones from public, anon, authenticated/);
+  assert.match(ingestion, /rename to ingest_apoc_raid_core/);
+  assert.match(ingestion, /from public\.apoc_raid_tombstones as t[\s\S]*upload_status := 'duplicate'/);
 });

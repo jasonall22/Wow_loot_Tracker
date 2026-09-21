@@ -94,7 +94,7 @@ input:focus { border-color: var(--wow-gold); box-shadow: 0 0 0 3px rgba(223, 173
 .archived-raids > summary span:last-of-type { margin-left: auto; color: var(--wow-muted); font-size: 11px; }
 .archived-raids > .muted { margin: 0 0 6px; }
 .archived-raid-row { cursor: default; }
-.archived-raid-actions { display: flex; align-items: center; gap: 10px; }
+.archived-raid-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
 .archived-raid-actions button { width: auto; margin: 0; padding: 8px 12px; font-size: 11px; }
 .shell.workspace-view .detail-grid { grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: clamp(24px, 4vw, 72px); }
 @media (max-width: 900px) {

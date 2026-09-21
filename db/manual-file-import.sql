@@ -32,6 +32,14 @@ begin
     return next; return;
   end if;
 
+  if exists (
+    select 1 from public.apoc_raid_tombstones as t
+      where t.guild_id = p_guild_id and t.source_key = p_source_key
+  ) then
+    upload_status := 'deleted'; guild_id := p_guild_id; raid_id := null;
+    return next; return;
+  end if;
+
   -- Deterministic, non-redeemable pseudo-device for manual file receipts.
   -- The function is service_role-only and the digest is never returned.
   v_digest := md5('apoc-file-import:' || p_guild_id::text || ':' || p_actor::text) ||

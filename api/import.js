@@ -46,6 +46,9 @@ export function createImportHandler({
       if (!Array.isArray(rows) || rows.length !== 1 || rows[0]?.guild_id !== guild) throw unavailable();
       const result = rows[0];
       if (result.upload_status === 'forbidden') throw forbidden();
+      if (result.upload_status === 'deleted') {
+        return jsonResponse({ error: { code: 'raid_permanently_deleted', message: 'This raid was permanently deleted and cannot be imported again.' } }, 410);
+      }
       if (!['accepted', 'duplicate', 'stale'].includes(result.upload_status)) throw unavailable();
       return jsonResponse({ status: result.upload_status, raid: result.raid_id }, result.upload_status === 'accepted' ? 201 : 200);
     } catch (error) { return errorResponse(error); }

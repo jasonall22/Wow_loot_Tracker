@@ -1,11 +1,24 @@
 -- Admin raid management. Kept separate from the original read-only foundation.
 -- display_name survives bridge uploads; deleted_at hides a raid without deleting
--- its loot, roster, receipts, corrections, or audit trail. Never hard-delete here.
+-- its data. A separately confirmed purge removes an archived raid and leaves a
+-- source-key tombstone so the live bridge cannot recreate it.
 begin;
 
 alter table public.apoc_raids
   add column if not exists display_name text check (char_length(display_name) between 1 and 300),
   add column if not exists deleted_at timestamptz;
+
+create table if not exists public.apoc_raid_tombstones (
+  guild_id uuid not null references public.apoc_guilds(id) on delete cascade,
+  source_key text not null check (char_length(source_key) between 1 and 200),
+  raid_id uuid not null,
+  deleted_at timestamptz not null default now(),
+  primary key (guild_id, source_key),
+  unique (guild_id, raid_id)
+);
+alter table public.apoc_raid_tombstones enable row level security;
+revoke all on public.apoc_raid_tombstones from public, anon, authenticated;
+grant select, insert, update, delete on public.apoc_raid_tombstones to service_role;
 
 alter table public.apoc_audit_events
   drop constraint apoc_audit_events_entity_type_check;
@@ -41,10 +54,36 @@ begin
   select * into v_raid from public.apoc_raids as r
     where r.guild_id = p_guild_id and r.id = p_raid_id for update;
   if not found then
+    -- A retry after a lost response is safe: the tombstone proves this exact
+    -- raid was already permanently deleted for the same guild.
+    if p_action = 'purge_raid' and jsonb_typeof(p_payload) = 'object' and exists (
+      select 1 from public.apoc_raid_tombstones as t
+        where t.guild_id = p_guild_id and t.raid_id = p_raid_id
+    ) then
+      return jsonb_build_object('status', 'ok');
+    end if;
     return jsonb_build_object('status', 'not_found');
   end if;
   if jsonb_typeof(p_payload) is distinct from 'object' then
     return jsonb_build_object('status', 'invalid');
+  end if;
+
+  if p_action = 'purge_raid' then
+    if v_raid.deleted_at is null then
+      return jsonb_build_object('status', 'invalid');
+    end if;
+    v_name := coalesce(v_raid.display_name, v_raid.name);
+    insert into public.apoc_raid_tombstones
+      (guild_id, source_key, raid_id, deleted_at)
+    values (p_guild_id, v_raid.source_key, p_raid_id, now())
+    on conflict (guild_id, source_key) do update set
+      raid_id = excluded.raid_id, deleted_at = excluded.deleted_at;
+    insert into public.apoc_audit_events
+      (guild_id, actor_user_id, entity_type, entity_id, action, reason)
+    values (p_guild_id, p_actor, 'raid', p_raid_id::text, 'purged', v_name);
+    delete from public.apoc_raids as r
+      where r.guild_id = p_guild_id and r.id = p_raid_id and r.deleted_at is not null;
+    return jsonb_build_object('status', 'ok', 'name', v_name);
   end if;
 
   if p_action = 'restore_raid' then

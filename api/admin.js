@@ -29,6 +29,10 @@ export function parseAdminBody(body) {
     if (!exactKeys(body, ['guild', 'raid', 'action'])) throw badRequest();
     return { guild, raid, action, payload: {} };
   }
+  if (action === 'purge_raid') {
+    if (!exactKeys(body, ['guild', 'raid', 'action'])) throw badRequest();
+    return { guild, raid, action, payload: {} };
+  }
   if (action === 'edit_drop') {
     if (!exactKeys(body, ['guild', 'raid', 'action', 'dropId', 'winner', 'awardType', 'awardNote'])) throw badRequest();
     if (typeof body.dropId !== 'string' || !body.dropId || body.dropId.length > 200
