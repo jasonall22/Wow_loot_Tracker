@@ -250,6 +250,14 @@ test('guild sections and connection button sit in the full-width top menu', () =
   assert.match(css, /\.dashboard-topbar\s*\{[^}]*justify-content:\s*space-between/);
 });
 
+test('raid archive follows compact overview cards in a single full-width column', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+  assert.match(html, /class="dashboard-content"[\s\S]*class="dashboard-main"[\s\S]*class="metrics"[\s\S]*class="dashboard-archive"/);
+  assert.match(css, /\.dashboard-content\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  assert.match(css, /\.dashboard-main\s*\{[^}]*width:\s*min\(100%,\s*440px\)/);
+});
+
 test('live portal refreshes the signed-in session before polling', async () => {
   const elements = new Map();
   const get = (selector) => elements.get(selector) ?? elements.set(selector, new Element()).get(selector);
