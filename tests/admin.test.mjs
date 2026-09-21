@@ -47,6 +47,7 @@ test('admin edits accept only exact, bounded raid and award fields', async () =>
   for (const invalid of [
     { ...body, role: 'admin' }, { ...body, name: '' }, { ...body, raid: 'wrong' },
     { guild: GUILD, raid: RAID, action: 'delete_raid', extra: true },
+    { guild: GUILD, raid: RAID, action: 'restore_raid', extra: true },
     { guild: GUILD, raid: RAID, action: 'edit_drop', dropId: 'drop', winner: 'Player', awardType: null, awardNote: '' },
     { guild: GUILD, raid: RAID, action: 'edit_drop', dropId: 'drop', winner: null, awardType: 'MS', awardNote: '' },
     { guild: GUILD, raid: RAID, action: 'edit_drop', dropId: 'drop', winner: null, awardType: 'BAD', awardNote: '' },
@@ -54,6 +55,7 @@ test('admin edits accept only exact, bounded raid and award fields', async () =>
   const clear = parseAdminBody({ guild: GUILD, raid: RAID, action: 'edit_drop', dropId: 'drop', winner: null, awardType: null, awardNote: '' });
   assert.deepEqual(clear.payload, { dropId: 'drop', winner: null, awardType: null, awardNote: '' });
   assert.deepEqual(parseAdminBody({ guild: GUILD, raid: RAID, action: 'delete_raid' }).payload, {});
+  assert.deepEqual(parseAdminBody({ guild: GUILD, raid: RAID, action: 'restore_raid' }).payload, {});
 });
 
 test('database permission and missing-raid statuses stay private', async () => {
@@ -71,6 +73,8 @@ test('raid projection shows admin name while keeping bridge source name separate
 test('admin SQL retains data on delete, checks current admin membership, and records loot corrections', async () => {
   const sql = await readFile(new URL('../db/admin-edits.sql', import.meta.url), 'utf8');
   assert.match(sql, /deleted_at = now\(\)/);
+  assert.match(sql, /p_action = 'restore_raid'[\s\S]*deleted_at = null/);
+  assert.match(sql, /'raid', p_raid_id::text, 'restored'/);
   assert.doesNotMatch(sql, /delete from public\.apoc_raids/i);
   assert.match(sql, /m\.status = 'active' and m\.role = 'admin' for share/);
   assert.match(sql, /insert into public\.apoc_drop_corrections/);

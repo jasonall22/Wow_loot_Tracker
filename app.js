@@ -15,6 +15,9 @@ const message = document.querySelector('#message');
 const guildList = document.querySelector('#guild-list');
 const guildMessage = document.querySelector('#guild-message');
 const dashboardMessage = document.querySelector('#dashboard-message');
+const archivedRaids = document.querySelector('#archived-raids');
+const archivedRaidList = document.querySelector('#archived-raid-list');
+const archivedMessage = document.querySelector('#archived-message');
 const pairingButton = document.querySelector('#create-pairing');
 const importButton = document.querySelector('#import-raid');
 const importDialog = document.querySelector('#import-dialog');
@@ -47,6 +50,8 @@ let raidArchiveSignature = '';
 const RAID_ARCHIVE_PAGE_SIZE = 50;
 let raidArchiveVisibleLimit = RAID_ARCHIVE_PAGE_SIZE;
 let raidArchiveRequest = 0;
+let archivedRaidSignature = '';
+let archivedRaidRequest = 0;
 let raidDetailSignature = '';
 const collapsedLootBosses = new Set();
 const itemTooltip = document.querySelector('#item-tooltip');
@@ -252,15 +257,20 @@ async function acceptPendingInvites() {
   return data;
 }
 
-async function adminEdit(action, fields = {}) {
-  if (!activeRaid || !canManageRaids) throw new Error('Admin access is required.');
+async function adminEditRaid(guildID, raidID, action, fields = {}) {
+  if (!guildID || !raidID || !canManageRaids) throw new Error('Admin access is required.');
   const response = await portalFetch('/api/admin', {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ guild: activeRaid.guildID, raid: activeRaid.raid.id, action, ...fields }),
+    body: JSON.stringify({ guild: guildID, raid: raidID, action, ...fields }),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error?.message ?? 'Could not save the change.');
   return data;
+}
+
+async function adminEdit(action, fields = {}) {
+  if (!activeRaid) throw new Error('Admin access is required.');
+  return adminEditRaid(activeRaid.guildID, activeRaid.raid.id, action, fields);
 }
 
 async function loadGuilds() {
@@ -308,8 +318,10 @@ async function openDashboard(entry) {
   rosterRequest += 1;
   canManageRaids = entry.permissions?.manageRaids === true;
   raidArchiveSignature = '';
+  archivedRaidSignature = '';
   raidArchiveVisibleLimit = RAID_ARCHIVE_PAGE_SIZE;
   raidArchiveRequest += 1;
+  archivedRaidRequest += 1;
   shell.classList.add('workspace-view');
   signedIn.hidden = true;
   dashboard.hidden = false;
@@ -323,10 +335,17 @@ async function openDashboard(entry) {
   document.querySelector('#manage-members').hidden = entry.permissions?.manageMembers !== true;
   const raidList = document.querySelector('#raid-list');
   raidList.replaceChildren();
+  archivedRaidList.replaceChildren();
+  archivedRaids.hidden = !canManageRaids;
+  archivedMessage.textContent = '';
+  document.querySelector('#archived-raid-count').textContent = '0 raids';
   document.querySelector('#load-more-raids').hidden = true;
   dashboardMessage.textContent = 'Loading raid archive…';
   dashboardMessage.className = 'message';
-  await loadRaidArchive(details.id);
+  await Promise.all([
+    loadRaidArchive(details.id),
+    canManageRaids ? loadArchivedRaids(details.id) : Promise.resolve(),
+  ]);
 }
 
 async function loadRaidArchive(guildID, quiet = false) {
@@ -379,6 +398,65 @@ async function loadRaidArchive(guildID, quiet = false) {
     }
   } finally {
     if (request === raidArchiveRequest) loadMore.disabled = false;
+  }
+}
+
+async function loadArchivedRaids(guildID, quiet = false) {
+  if (!canManageRaids) { archivedRaids.hidden = true; return; }
+  const request = ++archivedRaidRequest;
+  archivedRaids.hidden = false;
+  try {
+    const response = await portalFetch(`/api/portal?view=archived_raids&guild=${encodeURIComponent(guildID)}&limit=200&offset=0`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !Array.isArray(data.archived_raids)) {
+      throw new Error(data.error?.message ?? 'Could not load archived raids.');
+    }
+    if (selectedGuildID !== guildID || dashboard.hidden || request !== archivedRaidRequest) return;
+    const raids = data.archived_raids;
+    const count = document.querySelector('#archived-raid-count');
+    count.textContent = `${raids.length}${raids.length === 1 ? ' raid' : ' raids'}${raids.length === 200 ? ' shown' : ''}`;
+    archivedMessage.textContent = raids.length ? '' : 'No archived raids.';
+    archivedMessage.className = 'message';
+    const signature = JSON.stringify(raids.map((raid) => [raid.id, raid.name, raid.revision, raid.deleted_at, raid.updated_at]));
+    if (signature === archivedRaidSignature) return;
+    archivedRaidSignature = signature;
+    archivedRaidList.replaceChildren();
+    for (const raid of raids) {
+      const row = document.createElement('div'); row.className = 'raid-row archived-raid-row';
+      const identity = document.createElement('div');
+      const name = document.createElement('strong'); name.textContent = raid.name;
+      const meta = document.createElement('span');
+      const raidDate = raid.created_at ? new Date(raid.created_at).toLocaleDateString() : 'Date unavailable';
+      const archivedDate = raid.deleted_at ? new Date(raid.deleted_at).toLocaleString() : 'date unavailable';
+      meta.textContent = `${raidDate} · revision ${raid.revision} · archived ${archivedDate}`;
+      identity.append(name, meta);
+      const actions = document.createElement('div'); actions.className = 'archived-raid-actions';
+      const restore = document.createElement('button');
+      restore.type = 'button'; restore.className = 'secondary'; restore.textContent = 'Restore raid';
+      restore.setAttribute('aria-label', `Restore ${raid.name}`);
+      restore.addEventListener('click', async () => {
+        restore.disabled = true;
+        archivedMessage.textContent = `Restoring ${raid.name}…`;
+        archivedMessage.className = 'message';
+        try {
+          await adminEditRaid(guildID, raid.id, 'restore_raid');
+          raidArchiveSignature = '';
+          archivedRaidSignature = '';
+          await Promise.all([loadRaidArchive(guildID), loadArchivedRaids(guildID)]);
+          dashboardMessage.textContent = `${raid.name} was restored to the raid archive.`;
+          dashboardMessage.className = 'message';
+        } catch (error) {
+          archivedMessage.textContent = error.message;
+          archivedMessage.className = 'message error';
+        } finally { restore.disabled = false; }
+      });
+      actions.append(restore); row.append(identity, actions); archivedRaidList.append(row);
+    }
+  } catch (error) {
+    if (selectedGuildID === guildID && !dashboard.hidden && request === archivedRaidRequest) {
+      archivedMessage.textContent = quiet ? `Archived raid refresh paused: ${error.message}` : error.message;
+      archivedMessage.className = 'message error';
+    }
   }
 }
 
@@ -617,7 +695,7 @@ document.querySelector('#submit-import').addEventListener('click', async () => {
     }
     importDialog.close();
     raidArchiveSignature = '';
-    await loadRaidArchive(guild);
+    await Promise.all([loadRaidArchive(guild), canManageRaids ? loadArchivedRaids(guild) : Promise.resolve()]);
     dashboardMessage.textContent = result.status === 'accepted' ? 'Raid imported from the backup looter’s file.' : 'This raid was already imported.';
   } catch (error) {
     message.textContent = error.message;
@@ -762,7 +840,10 @@ async function refreshVisible() {
   refreshingView = true;
   try {
     if (!raidDetail.hidden && activeRaid) await loadRaidDetail(activeRaid.raid, activeRaid.guildID, true);
-    else if (!dashboard.hidden && selectedGuildID) await loadRaidArchive(selectedGuildID, true);
+    else if (!dashboard.hidden && selectedGuildID) await Promise.all([
+      loadRaidArchive(selectedGuildID, true),
+      canManageRaids ? loadArchivedRaids(selectedGuildID, true) : Promise.resolve(),
+    ]);
   } finally { refreshingView = false; }
 }
 setInterval(refreshVisible, 5000);
@@ -954,7 +1035,8 @@ document.querySelector('#delete-raid').addEventListener('click', async () => {
     dashboard.hidden = false;
     setGuildNav('overview');
     raidArchiveSignature = '';
-    await loadRaidArchive(guildID);
+    archivedRaidSignature = '';
+    await Promise.all([loadRaidArchive(guildID), loadArchivedRaids(guildID)]);
   } catch (error) { notice.textContent = error.message; notice.className = 'message error'; }
   finally { button.disabled = false; }
 });

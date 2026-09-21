@@ -14,6 +14,10 @@ set search_path = pg_catalog, public
 as $$
 declare
   v_digest text;
+  v_result_status text;
+  v_result_guild_id uuid;
+  v_result_raid_id uuid;
+  v_restored_name text;
 begin
   if p_actor is null or p_guild_id is null or p_export_guild is null or
      not exists (
@@ -41,9 +45,32 @@ begin
     return next; return;
   end if;
 
-  return query select r.upload_status, r.guild_id, r.raid_id
+  select r.upload_status, r.guild_id, r.raid_id
+    into v_result_status, v_result_guild_id, v_result_raid_id
     from public.ingest_apoc_raid(v_digest, p_request_id, p_source_key,
       p_source_revision, p_payload_hash, p_captured_at, p_raid, p_drops, p_members) as r;
+
+  -- A deliberate website file import may restore a previously archived raid.
+  -- Automatic bridge uploads still leave archived raids hidden.
+  update public.apoc_raids as r
+     set deleted_at = null, updated_at = now()
+   where r.guild_id = v_result_guild_id and r.id = v_result_raid_id
+     and r.deleted_at is not null
+  returning coalesce(r.display_name, r.name) into v_restored_name;
+  if found then
+    insert into public.apoc_audit_events
+      (guild_id, actor_user_id, entity_type, entity_id, action, reason, request_id)
+    values (v_result_guild_id, p_actor, 'raid', v_result_raid_id::text,
+      'restored', v_restored_name, p_request_id);
+    -- Treat a successful restore as an accepted manual import so the portal
+    -- closes the dialog and refreshes the visible raid archive immediately.
+    v_result_status := 'accepted';
+  end if;
+
+  upload_status := v_result_status;
+  guild_id := v_result_guild_id;
+  raid_id := v_result_raid_id;
+  return next;
 end;
 $$;
 

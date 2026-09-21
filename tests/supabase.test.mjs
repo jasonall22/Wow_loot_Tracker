@@ -97,6 +97,14 @@ test('raid reads exclude archived raids and project persistent display names', a
   assert.ok(calls[0].url.searchParams.get('select').includes('display_name'));
   assert.equal(raids[0].display_name, 'Admin name');
 });
+test('archived raid reads require deleted rows and newest deletion first', async () => {
+  const { backend, calls } = setup([Response.json([])]);
+  await backend.archived_raids(GUILD, token(), { limit: 50, offset: 0 });
+  assert.equal(calls[0].url.searchParams.get('guild_id'), `eq.${GUILD}`);
+  assert.equal(calls[0].url.searchParams.get('deleted_at'), 'not.is.null');
+  assert.equal(calls[0].url.searchParams.get('order'), 'deleted_at.desc,id.asc');
+  assert.ok(calls[0].url.searchParams.get('select').includes('deleted_at'));
+});
 for (const method of ['drops', 'members', 'visits', 'comparisons']) test(`${method} query includes both guild and raid, bounded pagination, and no wildcard select`, async () => {
   const { backend, calls } = setup([Response.json([])]);
   await backend[method](GUILD, RAID, token(), { limit: 50, offset: 10 });

@@ -48,6 +48,20 @@ test('guild roster reads require membership and reject wrong-guild rows', async 
   const { handle: other } = setup({ roster_members: async () => [{ guild_id: OTHER_GUILD, raid_id: RAID, name: 'secret' }] });
   assert.equal((await other(request(route('roster_members')))).status, 503);
 });
+test('only admins can list archived raids for their current guild', async () => {
+  const member = setup();
+  assert.equal((await member.handle(request(route('archived_raids')))).status, 403);
+  assert.deepEqual(member.calls.map(x => x.method), ['authenticate', 'membership']);
+  const crossGuild = setup({ membership: async () => ({ ...membership, role: 'admin' }) });
+  assert.equal((await crossGuild.handle(request(route('archived_raids', OTHER_GUILD)))).status, 403);
+  assert.deepEqual(crossGuild.calls.map(x => x.method), ['authenticate', 'membership']);
+  const admin = setup({ membership: async () => ({ ...membership, role: 'admin' }) });
+  const response = await admin.handle(request(route('archived_raids')));
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.archived_raids[0].deleted_at, '2026-09-18T00:00:00Z');
+  assert.equal(admin.calls.at(-1).method, 'archived_raids');
+});
 for (const role of ['member', 'uploader']) test(`${role} cannot read comparison endpoint`, async () => {
   const { handle, calls } = setup({ membership: async () => ({ ...membership, can_upload: role === 'uploader' }) });
   assert.equal((await handle(request(route('comparisons')))).status, 403);

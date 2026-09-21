@@ -97,6 +97,10 @@ export function createSupabaseBackend({ config, fetchImpl = globalThis.fetch, no
       return rows('apoc_raids', SELECT.raid, { guild_id: `eq.${guildID}`, deleted_at: 'is.null' }, token,
         { order: 'created_at.desc,id.asc', limit: String(limit), offset: String(offset) });
     },
+    async archived_raids(guildID, token, { limit, offset }) {
+      return rows('apoc_raids', SELECT.raid, { guild_id: `eq.${guildID}`, deleted_at: 'not.is.null' }, token,
+        { order: 'deleted_at.desc,id.asc', limit: String(limit), offset: String(offset) });
+    },
     async roster_members(guildID, token, { limit, offset }) {
       return rows('apoc_raid_members', SELECT.member, { guild_id: `eq.${guildID}` }, token,
         { order: 'raid_id.asc,character_key.asc', limit: String(limit), offset: String(offset) });

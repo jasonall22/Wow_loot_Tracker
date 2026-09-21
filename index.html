@@ -88,6 +88,12 @@
               <button id="load-more-raids" class="secondary compact-button" type="button" hidden>Load older raids</button>
               <p id="dashboard-message" class="message" role="status" aria-live="polite"></p>
             </section>
+            <details id="archived-raids" class="archived-raids" hidden>
+              <summary><span class="eyebrow">ARCHIVED RAIDS</span><span id="archived-raid-count">0 raids</span></summary>
+              <p class="muted">Restore a raid to return it to the main archive, then open it to manage its loot, roster, and name.</p>
+              <div id="archived-raid-list" class="raid-list"></div>
+              <p id="archived-message" class="message" role="status" aria-live="polite"></p>
+            </details>
           </div>
         </div>
         <div id="guild-roster" hidden>

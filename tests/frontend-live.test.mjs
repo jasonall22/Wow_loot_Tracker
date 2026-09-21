@@ -56,6 +56,8 @@ test('an open raid detail refreshes a removed drop without a user click', async 
     const view = url.searchParams.get('view');
     if (view === 'guilds') return Response.json({ guilds: [{ guild: { id: 'guild-1', name: 'APOC' }, membership: { role: 'admin' }, permissions: { uploadRaids: true, manageRaids: true } }] });
     if (view === 'raids') return Response.json({ raids: deleted ? [] : [raid] });
+    if (view === 'archived_raids') return Response.json({ archived_raids: deleted
+      ? [{ ...raid, deleted_at: '2026-09-18T00:00:00Z' }] : [] });
     if (view === 'drops') {
       dropReads += 1;
       const drops = [{ id: 'drop-1', item_id: 32336, item_name: 'Kept', boss: 'Boss', winner: corrected ? 'Player' : 'Off-roster', award_type: 'MS' }];
@@ -85,6 +87,7 @@ test('an open raid detail refreshes a removed drop without a user click', async 
     if (url.pathname === '/api/admin') {
       const body = JSON.parse(options.body); adminActions.push(body);
       if (body.action === 'delete_raid') deleted = true;
+      if (body.action === 'restore_raid') deleted = false;
       if (body.action === 'edit_drop') corrected = true;
       return Response.json({ status: 'ok', name: body.name ?? null });
     }
@@ -207,6 +210,12 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   assert.equal(adminActions.at(-1).action, 'delete_raid');
   assert.equal(get('#raid-count').textContent, '0');
   assert.equal(get('#raid-detail').hidden, true);
+  assert.equal(get('#archived-raid-count').textContent, '1 raid');
+  assert.equal(get('#archived-raid-list').children.length, 1);
+  await get('#archived-raid-list').children[0].children[1].children[0].listeners.click();
+  assert.equal(adminActions.at(-1).action, 'restore_raid');
+  assert.equal(get('#raid-count').textContent, '1');
+  assert.equal(get('#archived-raid-count').textContent, '0 raids');
 });
 
 test('raid archive loads older pages and refreshes the visible range', async () => {
@@ -275,6 +284,8 @@ test('overview cards sit beside guild identity and archive stays below', () => {
   assert.match(css, /\.dashboard-content\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
   assert.match(css, /\.dashboard-heading \.dashboard-main\s*\{[^}]*flex:\s*0 1 440px/);
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.dashboard-heading\s*\{\s*flex-wrap:\s*wrap/);
+  assert.match(html, /id="archived-raids"[\s\S]*id="archived-raid-list"/);
+  assert.match(appSource, /adminEditRaid\(guildID, raid\.id, 'restore_raid'\)/);
 });
 
 test('live portal refreshes the signed-in session before polling', async () => {

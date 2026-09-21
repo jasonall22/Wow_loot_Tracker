@@ -40,11 +40,27 @@ begin
 
   select * into v_raid from public.apoc_raids as r
     where r.guild_id = p_guild_id and r.id = p_raid_id for update;
-  if not found or v_raid.deleted_at is not null then
+  if not found then
     return jsonb_build_object('status', 'not_found');
   end if;
   if jsonb_typeof(p_payload) is distinct from 'object' then
     return jsonb_build_object('status', 'invalid');
+  end if;
+
+  if p_action = 'restore_raid' then
+    if v_raid.deleted_at is not null then
+      update public.apoc_raids as r set deleted_at = null, updated_at = now()
+        where r.guild_id = p_guild_id and r.id = p_raid_id;
+      insert into public.apoc_audit_events
+        (guild_id, actor_user_id, entity_type, entity_id, action, reason)
+      values (p_guild_id, p_actor, 'raid', p_raid_id::text, 'restored',
+        coalesce(v_raid.display_name, v_raid.name));
+    end if;
+    return jsonb_build_object('status', 'ok', 'name', coalesce(v_raid.display_name, v_raid.name));
+  end if;
+
+  if v_raid.deleted_at is not null then
+    return jsonb_build_object('status', 'not_found');
   end if;
 
   if p_action = 'rename_raid' then

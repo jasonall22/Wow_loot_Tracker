@@ -64,8 +64,11 @@ test('website import requires fresh upload permission and sends no full SavedVar
   assert.equal(called, true);
 });
 
-test('manual import avoids PL/pgSQL output-column ambiguity in its device upsert', () => {
+test('manual import avoids output ambiguity and restores an explicitly imported archived raid', () => {
   const sql = readFileSync(new URL('../db/manual-file-import.sql', import.meta.url), 'utf8');
   assert.match(sql, /on conflict on constraint apoc_devices_guild_id_token_digest_key do nothing/i);
   assert.doesNotMatch(sql, /on conflict\s*\(guild_id,\s*token_digest\)/i);
+  assert.match(sql, /update public\.apoc_raids as r\s+set deleted_at = null/i);
+  assert.match(sql, /'restored', v_restored_name, p_request_id/i);
+  assert.match(sql, /v_result_status := 'accepted'/i);
 });

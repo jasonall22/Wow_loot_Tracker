@@ -9,7 +9,7 @@ const COMPARISON = ['id', 'guild_id', 'raid_id', 'drop_id', 'status', 'observed_
 export const SELECT = Object.freeze({
   guild: 'id,name,realm,faction',
   membership: 'guild_id,user_id,role,status,can_upload,can_edit',
-  raid: [...RAID, 'display_name'].join(','), drop: DROP.join(','), member: MEMBER.join(','),
+  raid: [...RAID, 'display_name', 'deleted_at'].join(','), drop: DROP.join(','), member: MEMBER.join(','),
   visit: VISIT.join(','), comparison: COMPARISON.join(','),
 });
 
@@ -35,6 +35,9 @@ export function scopedRows(rows, guildID, raidID = null) {
 
 export function raidProjection(row) {
   return { ...pick(row, RAID), name: row.display_name || row.name };
+}
+export function archivedRaidProjection(row) {
+  return { ...raidProjection(row), deleted_at: row.deleted_at };
 }
 export function dropProjection(row) { return pick(row, DROP); }
 export function memberProjection(row) { return pick(row, MEMBER); }

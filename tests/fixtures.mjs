@@ -23,6 +23,7 @@ export function fakeBackend(overrides = {}) {
     membership: async () => membership,
     guild: async () => ({ id: GUILD, name: 'Synthetic guild', realm: 'Test realm', faction: 'Horde' }),
     raids: async () => [raid],
+    archived_raids: async () => [{ ...raid, deleted_at: '2026-09-18T00:00:00Z' }],
     raid: async () => raid,
     drops: async () => [{ guild_id: GUILD, raid_id: RAID, id: 'drop-1', item_name: 'Test item', boss: 'Test boss' }],
     members: async () => [{ guild_id: GUILD, raid_id: RAID, character_key: 'test-realm', name: 'Test-Realm', present: true }],
