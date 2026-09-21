@@ -94,30 +94,17 @@ test('website import syncs an included complete guild roster', async () => {
   assert.equal(calls[1].payload.p_members[0].character_key, 'backup');
 });
 
-test('website import reports a permanently deleted raid instead of recreating it', async () => {
-  const allowed = fakeBackend({ membership: async () => ({ ...membership, can_upload: true }) });
-  const handler = createImportHandler({
-    backendFactory: () => allowed.backend,
-    serverConfig: () => ({ origin: 'https://exampleproject.supabase.co', secretKey: 'sb_secret_test' }),
-    fetchImpl: async () => Response.json([{ upload_status: 'deleted', guild_id: GUILD, raid_id: null }]),
-  });
-  const response = await handler(new Request('https://portal.invalid/api/import', {
-    method: 'POST', headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ guild: GUILD, export: snapshot() }),
-  }));
-  assert.equal(response.status, 410);
-  assert.deepEqual(await response.json(), { error: {
-    code: 'raid_permanently_deleted',
-    message: 'This raid was permanently deleted and cannot be imported again.',
-  } });
-});
-
-test('manual import avoids output ambiguity and restores an explicitly imported archived raid', () => {
+test('manual import can re-add a permanently deleted raid and still restores archived raids', () => {
   const sql = readFileSync(new URL('../db/manual-file-import.sql', import.meta.url), 'utf8');
+  const api = readFileSync(new URL('../api/import.js', import.meta.url), 'utf8');
   assert.match(sql, /on conflict on constraint apoc_devices_guild_id_token_digest_key do nothing/i);
   assert.doesNotMatch(sql, /on conflict\s*\(guild_id,\s*token_digest\)/i);
+  assert.match(sql, /delete from public\.apoc_raid_tombstones as t[\s\S]*returning t\.raid_id into v_deleted_raid_id/i);
+  assert.match(sql, /delete from public\.apoc_upload_receipts as r[\s\S]*r\.source_key = p_source_key/i);
+  assert.match(sql, /from public\.ingest_apoc_raid[\s\S]*if v_readded then[\s\S]*'reimported'/i);
   assert.match(sql, /update public\.apoc_raids as r\s+set deleted_at = null/i);
-  assert.match(sql, /from public\.apoc_raid_tombstones as t[\s\S]*upload_status := 'deleted'/i);
+  assert.doesNotMatch(sql, /upload_status := 'deleted'/i);
+  assert.doesNotMatch(api, /raid_permanently_deleted/i);
   assert.match(sql, /'restored', v_restored_name, p_request_id/i);
   assert.match(sql, /v_result_status := 'accepted'/i);
 });

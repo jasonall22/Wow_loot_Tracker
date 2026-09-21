@@ -18,6 +18,8 @@ declare
   v_result_guild_id uuid;
   v_result_raid_id uuid;
   v_restored_name text;
+  v_readded boolean := false;
+  v_deleted_raid_id uuid;
 begin
   if p_actor is null or p_guild_id is null or p_export_guild is null or
      not exists (
@@ -29,14 +31,6 @@ begin
         where g.id = p_guild_id and lower(g.name) = lower(p_export_guild)
      ) then
     upload_status := 'forbidden'; guild_id := p_guild_id; raid_id := null;
-    return next; return;
-  end if;
-
-  if exists (
-    select 1 from public.apoc_raid_tombstones as t
-      where t.guild_id = p_guild_id and t.source_key = p_source_key
-  ) then
-    upload_status := 'deleted'; guild_id := p_guild_id; raid_id := null;
     return next; return;
   end if;
 
@@ -53,10 +47,34 @@ begin
     return next; return;
   end if;
 
+  -- Choosing a saved export in the website is an explicit request to add the
+  -- raid back. Clear the tombstone and its old idempotency receipts in this
+  -- same transaction. The live bridge still calls ingest_apoc_raid directly,
+  -- where the tombstone continues to block automatic resurrection.
+  delete from public.apoc_raid_tombstones as t
+    where t.guild_id = p_guild_id and t.source_key = p_source_key
+  returning t.raid_id into v_deleted_raid_id;
+  if found then
+    delete from public.apoc_upload_receipts as r
+      where r.guild_id = p_guild_id and r.source_key = p_source_key;
+    v_readded := true;
+  end if;
+
   select r.upload_status, r.guild_id, r.raid_id
     into v_result_status, v_result_guild_id, v_result_raid_id
     from public.ingest_apoc_raid(v_digest, p_request_id, p_source_key,
       p_source_revision, p_payload_hash, p_captured_at, p_raid, p_drops, p_members) as r;
+
+  if v_readded then
+    if v_result_raid_id is null then
+      raise exception 'manual raid re-import did not recreate raid' using errcode = '55000';
+    end if;
+    insert into public.apoc_audit_events
+      (guild_id, actor_user_id, entity_type, entity_id, action, reason, request_id)
+    values (v_result_guild_id, p_actor, 'raid', v_result_raid_id::text,
+      'reimported', jsonb_build_object('previous_raid_id', v_deleted_raid_id)::text, p_request_id);
+    v_result_status := 'accepted';
+  end if;
 
   -- A deliberate website file import may restore a previously archived raid.
   -- Automatic bridge uploads still leave archived raids hidden.
