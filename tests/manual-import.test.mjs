@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { extractRaidExport } from '../src/export-file.mjs';
 import { normalizeRaidExport, sourceKeyForExport } from '../src/manual-import.mjs';
 import { createImportHandler } from '../api/import.js';
@@ -61,4 +62,10 @@ test('website import requires fresh upload permission and sends no full SavedVar
   assert.equal(response.status, 201);
   assert.equal((await response.json()).raid, RAID);
   assert.equal(called, true);
+});
+
+test('manual import avoids PL/pgSQL output-column ambiguity in its device upsert', () => {
+  const sql = readFileSync(new URL('../db/manual-file-import.sql', import.meta.url), 'utf8');
+  assert.match(sql, /on conflict on constraint apoc_devices_guild_id_token_digest_key do nothing/i);
+  assert.doesNotMatch(sql, /on conflict\s*\(guild_id,\s*token_digest\)/i);
 });

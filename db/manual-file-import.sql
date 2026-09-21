@@ -34,7 +34,7 @@ begin
               md5('apoc-file-import:v2:' || p_guild_id::text || ':' || p_actor::text);
   insert into public.apoc_devices(guild_id, label, token_digest, created_by)
   values (p_guild_id, 'Website file import', v_digest, p_actor)
-  on conflict (guild_id, token_digest) do nothing;
+  on conflict on constraint apoc_devices_guild_id_token_digest_key do nothing;
   if exists (select 1 from public.apoc_devices as d where d.guild_id = p_guild_id
     and d.token_digest = v_digest and d.revoked_at is not null) then
     upload_status := 'forbidden'; guild_id := p_guild_id; raid_id := null;
