@@ -27,6 +27,22 @@ test('upload parser accepts bounded explicit metadata', async () => {
   assert.deepEqual(await parseUploadBody(request), body);
 });
 
+test('guild roster is optional, bounded, and does not change the raid payload hash', async () => {
+  const body = validUpload();
+  const originalHash = body.payloadHash;
+  body.guildRoster = { members: [
+    { characterKey: 'player', name: 'Player', class: 'MAGE', rankName: 'Raider', rankIndex: 4 },
+  ] };
+  assert.equal(digestPayload(body), originalHash);
+  const parsed = await parseUploadBody(new Request('https://example.test', { method: 'POST', body: JSON.stringify(body) }));
+  assert.equal(parsed.guildRoster.members[0].rankName, 'Raider');
+  const invalid = validUpload();
+  invalid.guildRoster = { members: [
+    { characterKey: 'wrong', name: 'Player', class: 'MAGE', rankName: 'Raider', rankIndex: 4 },
+  ] };
+  await assert.rejects(() => parseUploadBody(new Request('https://example.test', { method: 'POST', body: JSON.stringify(invalid) })));
+});
+
 test('upload parser rejects opaque, malformed, and oversized input', async () => {
   const negativeRevision = validUpload(); negativeRevision.sourceRevision = -1;
   const duplicateDrop = validUpload(); duplicateDrop.drops.push({ ...duplicateDrop.drops[0] }); duplicateDrop.payloadHash = digestPayload(duplicateDrop);

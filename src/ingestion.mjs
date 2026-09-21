@@ -28,7 +28,8 @@ export async function parseUploadBody(request) {
   try { body = JSON.parse(text); } catch { throw badRequest(); }
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw badRequest();
   const required = ['requestId', 'sourceKey', 'sourceRevision', 'payloadHash', 'capturedAt', 'raid', 'drops', 'members'];
-  if (required.some(key => !Object.hasOwn(body, key)) || Object.keys(body).some(key => !required.includes(key))) throw badRequest();
+  const allowed = [...required, 'guildRoster'];
+  if (required.some(key => !Object.hasOwn(body, key)) || Object.keys(body).some(key => !allowed.includes(key))) throw badRequest();
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.requestId) ||
       typeof body.sourceKey !== 'string' || body.sourceKey.length < 1 || body.sourceKey.length > 200 ||
       !Number.isSafeInteger(body.sourceRevision) || body.sourceRevision < 0 ||
@@ -71,6 +72,17 @@ export function databaseRecords(body) {
   };
 }
 
+export function databaseGuildRoster(body) {
+  if (!body.guildRoster) return null;
+  return body.guildRoster.members.map(member => ({
+    character_key: member.characterKey,
+    name: member.name,
+    class: member.class,
+    rank_name: member.rankName,
+    rank_index: member.rankIndex,
+  }));
+}
+
 export function validateUploadRecords(body) {
   const { raid, drops, members } = body;
   if (!exact(raid, ['name', 'runId', 'createdAt', 'closedAt']) ||
@@ -104,6 +116,20 @@ export function validateUploadRecords(body) {
       if (!exact(visit, ['joinedAt', 'leftAt']) || !stamp(visit.joinedAt) || !optionalStamp(visit.leftAt) ||
           starts.has(visit.joinedAt) || (visit.leftAt !== null && Date.parse(visit.leftAt) < Date.parse(visit.joinedAt))) throw badRequest();
       starts.add(visit.joinedAt);
+    }
+  }
+  if (body.guildRoster !== undefined) {
+    const roster = body.guildRoster;
+    if (!exact(roster, ['members']) || !Array.isArray(roster.members) ||
+        roster.members.length < 1 || roster.members.length > 1000) throw badRequest();
+    const rosterIDs = new Set();
+    for (const member of roster.members) {
+      if (!exact(member, ['characterKey', 'name', 'class', 'rankName', 'rankIndex']) ||
+          !bounded(member.characterKey, 1, 200) || !bounded(member.name, 1, 200) || member.name !== member.name.trim() ||
+          member.characterKey !== member.name.toLocaleLowerCase() || rosterIDs.has(member.characterKey) ||
+          !bounded(member.class, 0, 30) || !bounded(member.rankName, 0, 100) ||
+          !Number.isSafeInteger(member.rankIndex) || member.rankIndex < 0 || member.rankIndex > 99) throw badRequest();
+      rosterIDs.add(member.characterKey);
     }
   }
 }

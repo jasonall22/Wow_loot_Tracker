@@ -1,5 +1,6 @@
 import { jsonResponse, errorResponse, unauthorized, unavailable } from '../src/errors.mjs';
-import { databaseRecords, digestSecret, parseUploadBody } from '../src/ingestion.mjs';
+import { databaseGuildRoster, databaseRecords, digestSecret, parseUploadBody } from '../src/ingestion.mjs';
+import { syncGuildRoster } from '../src/guild-roster-sync.mjs';
 import { loadServerConfig } from '../src/supabase.mjs';
 
 const databasePayload = body => ({
@@ -35,6 +36,8 @@ export function createIngestHandler({ serverConfig = () => loadServerConfig(), f
       const row = rows[0];
       if (!row) throw unauthorized();
       if (!['accepted', 'duplicate', 'stale'].includes(row.upload_status) || typeof row.guild_id !== 'string') throw unavailable();
+      await syncGuildRoster({ config, fetchImpl, guildID: row.guild_id, capturedAt: body.capturedAt,
+        members: databaseGuildRoster(body) });
       if (row.upload_status === 'stale') return jsonResponse({ error: { code: 'stale_revision', message: 'A newer raid revision is already stored.' } }, 409);
       return jsonResponse({ status: row.upload_status, guild: row.guild_id, raid: row.raid_id }, row.upload_status === 'accepted' ? 201 : 200);
     } catch (error) { return errorResponse(error); }

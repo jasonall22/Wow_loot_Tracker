@@ -24,6 +24,10 @@ button { width: 100%; border: 0; border-radius: 10px; background: #78d7bb; color
 .guild-menu-link[aria-current="page"] { border-color: var(--wow-bronze); background: #29303b; color: var(--wow-gold-bright); }
 .guild-menu-link:focus-visible { outline: 2px solid var(--wow-gold-bright); outline-offset: 2px; }
 .roster-list { display: grid; gap: 10px; margin-top: 24px; }
+.roster-tabs { display: flex; gap: 8px; margin: 22px 0; }
+.roster-tabs button { width: auto; margin: 0; padding: 9px 13px; }
+.roster-tabs button[aria-pressed="true"] { border-color: var(--wow-gold); background: #29303b; color: var(--wow-gold-bright); }
+.roster-tabs span { margin-left: 6px; color: #9daabd; }
 .roster-player { border: 1px solid #394152; border-radius: 12px; background: #151e2c; overflow: hidden; }
 .roster-player-summary { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(0, 1fr) auto; align-items: center; gap: 18px; padding: 16px 20px; cursor: pointer; }
 .roster-player-summary::marker { color: var(--wow-gold); }

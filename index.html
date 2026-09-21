@@ -100,7 +100,11 @@
           <button id="roster-back-to-raid" class="back" type="button" hidden>← Back to raid</button>
           <p class="eyebrow">GUILD LOOT ROSTER</p>
           <h2>Players &amp; awarded loot</h2>
-          <p class="muted">Recorded raid participants and awards. This is not a live guild-membership or equipped-gear list.</p>
+          <p class="muted">Membership follows the in-game guild roster. Former members keep their loot history, and a player who joins later gains their earlier recorded awards.</p>
+          <div class="roster-tabs" aria-label="Guild member status">
+            <button id="roster-current" class="secondary" type="button" aria-pressed="true">Current members <span id="roster-current-count">0</span></button>
+            <button id="roster-former" class="secondary" type="button" aria-pressed="false">Former members <span id="roster-former-count">0</span></button>
+          </div>
           <label for="roster-search">Find a player</label>
           <input id="roster-search" type="search" placeholder="Search by character name" autocomplete="off">
           <p id="roster-message" class="message" role="status" aria-live="polite"></p>

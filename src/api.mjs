@@ -3,7 +3,7 @@ import { requireID, permissionsFor, requirePermission } from './permissions.mjs'
 import { bearerToken, loadConfig, createSupabaseBackend } from './supabase.mjs';
 import {
   scopedRows, guildProjection, membershipProjection, raidProjection,
-  archivedRaidProjection, dropProjection, memberProjection, visitProjection, comparisonProjection,
+  archivedRaidProjection, dropProjection, memberProjection, guildCharacterProjection, visitProjection, comparisonProjection,
 } from './projections.mjs';
 
 const CHILDREN = { drops: dropProjection, members: memberProjection, visits: visitProjection, comparisons: comparisonProjection };
@@ -11,12 +11,12 @@ const CHILDREN = { drops: dropProjection, members: memberProjection, visits: vis
 function parseQuery(request) {
   const params = new URL(request.url).searchParams;
   const view = params.get('view') ?? 'guilds';
-  const allowed = ['guilds', 'context', 'raids', 'archived_raids', 'roster_members', 'roster_drops', 'raid', ...Object.keys(CHILDREN)];
+  const allowed = ['guilds', 'context', 'raids', 'archived_raids', 'guild_roster', 'roster_members', 'roster_drops', 'raid', ...Object.keys(CHILDREN)];
   if (!allowed.includes(view)) throw badRequest();
   const keys = new Set(['view']);
   if (view !== 'guilds') keys.add('guild');
   if (view === 'raid' || Object.hasOwn(CHILDREN, view)) keys.add('raid');
-  const paginated = ['raids', 'archived_raids', 'roster_members', 'roster_drops'].includes(view) || Object.hasOwn(CHILDREN, view);
+  const paginated = ['raids', 'archived_raids', 'guild_roster', 'roster_members', 'roster_drops'].includes(view) || Object.hasOwn(CHILDREN, view);
   if (paginated) { keys.add('limit'); keys.add('offset'); }
   for (const key of params.keys()) if (!keys.has(key) || params.getAll(key).length !== 1) throw badRequest();
   function integer(name, fallback, min, max) {
@@ -74,9 +74,10 @@ export function createPortalHandler({ backendFactory = () => createSupabaseBacke
         const rows = scopedRows(await backend.archived_raids(guildID, token, paging), guildID);
         return jsonResponse({ archived_raids: rows.map(archivedRaidProjection), page: paging });
       }
-      if (view === 'roster_members' || view === 'roster_drops') {
+      if (view === 'guild_roster' || view === 'roster_members' || view === 'roster_drops') {
         const rows = scopedRows(await backend[view](guildID, token, paging), guildID);
-        return jsonResponse({ [view]: rows.map(view === 'roster_members' ? memberProjection : dropProjection), page: paging });
+        const projection = view === 'guild_roster' ? guildCharacterProjection : view === 'roster_members' ? memberProjection : dropProjection;
+        return jsonResponse({ [view]: rows.map(projection), page: paging });
       }
       const raid = await backend.raid(guildID, raidID, token);
       if (!raid) throw notFound();

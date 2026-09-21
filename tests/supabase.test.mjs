@@ -117,7 +117,7 @@ for (const method of ['drops', 'members', 'visits', 'comparisons']) test(`${meth
   assert.ok(!url.searchParams.get('select').includes('*'));
   assert.equal(init.headers.Authorization, `Bearer ${token()}`);
 });
-for (const method of ['roster_members', 'roster_drops']) test(`${method} is guild-filtered and keeps the user JWT`, async () => {
+for (const method of ['guild_roster', 'roster_members', 'roster_drops']) test(`${method} is guild-filtered and keeps the user JWT`, async () => {
   const { backend, calls } = setup([Response.json([])]);
   await backend[method](GUILD, token(), { limit: 50, offset: 10 });
   const { url, init } = calls[0];

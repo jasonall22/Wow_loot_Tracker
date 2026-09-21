@@ -40,6 +40,8 @@ let activeRaid = null;
 let returnRaid = null;
 let rosterPlayers = [];
 let selectedRosterKey = null;
+let rosterGroup = 'current';
+let rosterLookupName = '';
 let rosterRequest = 0;
 let raidMembers = [];
 let editingDrop = null;
@@ -519,6 +521,7 @@ function returnToOverview() {
   activeRaid = null;
   returnRaid = null;
   selectedRosterKey = null;
+  rosterLookupName = '';
   guildRoster.hidden = true;
   raidDetail.hidden = true;
   dashboard.hidden = false;
@@ -532,12 +535,16 @@ function renderGuildRoster() {
   const list = document.querySelector('#roster-list');
   const search = document.querySelector('#roster-search').value.trim().toLocaleLowerCase();
   list.replaceChildren();
-  const visible = rosterPlayers.filter(player => selectedRosterKey
+  const grouped = rosterPlayers.filter(player => player.isCurrent === (rosterGroup === 'current'));
+  const visible = grouped.filter(player => selectedRosterKey
     ? player.key === selectedRosterKey
     : player.name.toLocaleLowerCase().includes(search));
   if (!visible.length) {
     const empty = document.createElement('p'); empty.className = 'muted';
-    empty.textContent = rosterPlayers.length ? 'No player matches that search.' : 'No raid participants or awards have been recorded yet.';
+    if (!rosterPlayers.length) empty.textContent = 'No guild roster has synced yet. Run the updated bridge in-game or import a current Loot Tracker export.';
+    else if (rosterLookupName) empty.textContent = `${rosterLookupName} has no current or former guild roster record. PUG loot is not included in Guild loot.`;
+    else if (search) empty.textContent = 'No member matches that search.';
+    else empty.textContent = rosterGroup === 'current' ? 'No current guild members were found.' : 'No former guild members have been recorded.';
     list.append(empty); return;
   }
   for (const player of visible) {
@@ -549,7 +556,10 @@ function renderGuildRoster() {
     const className = String(player.class || '').trim().toLowerCase().replace(/\s+/g, '');
     if (WOW_CLASSES.has(className.toUpperCase())) name.className = `class-${className}`;
     const meta = document.createElement('small');
-    meta.textContent = `${player.class || 'Class not recorded'} · ${player.raidCount} recorded ${player.raidCount === 1 ? 'raid' : 'raids'}`;
+    const identityParts = [player.class || 'Class not recorded'];
+    if (player.rankName) identityParts.push(player.rankName);
+    identityParts.push(`${player.raidCount} recorded ${player.raidCount === 1 ? 'raid' : 'raids'}`);
+    meta.textContent = identityParts.join(' · ');
     identity.append(name, meta);
     const icons = document.createElement('span'); icons.className = 'roster-icons';
     for (const drop of player.loot.slice(0, 4)) {
@@ -603,20 +613,31 @@ async function openGuildRoster(winnerName = '') {
   const search = document.querySelector('#roster-search');
   search.value = winnerName;
   selectedRosterKey = null;
+  rosterLookupName = winnerName;
+  if (!winnerName) rosterGroup = 'current';
   document.querySelector('#roster-list').replaceChildren();
   const notice = document.querySelector('#roster-message'); notice.textContent = 'Loading tracked players and awards…'; notice.className = 'message';
   try {
-    const [raids, members, drops] = await Promise.all([
-      loadGuildPages(guildID, 'raids'), loadGuildPages(guildID, 'roster_members'), loadGuildPages(guildID, 'roster_drops'),
+    const [raids, guildMembers, members, drops] = await Promise.all([
+      loadGuildPages(guildID, 'raids'), loadGuildPages(guildID, 'guild_roster'),
+      loadGuildPages(guildID, 'roster_members'), loadGuildPages(guildID, 'roster_drops'),
     ]);
     if (guildRoster.hidden || guildID !== selectedGuildID || request !== rosterRequest) return;
-    rosterPlayers = buildLootRoster(members, drops, raids);
+    rosterPlayers = buildLootRoster(guildMembers, members, drops, raids);
     const matchedPlayer = findLootPlayer(rosterPlayers, winnerName);
     if (matchedPlayer) {
       search.value = matchedPlayer.name;
       selectedRosterKey = matchedPlayer.key;
+      rosterGroup = matchedPlayer.isCurrent ? 'current' : 'former';
+      rosterLookupName = '';
     }
-    notice.textContent = `${rosterPlayers.length} recorded players · ${rosterPlayers.reduce((sum, player) => sum + player.loot.length, 0)} awards`;
+    const currentCount = rosterPlayers.filter(player => player.isCurrent).length;
+    const formerCount = rosterPlayers.length - currentCount;
+    document.querySelector('#roster-current-count').textContent = currentCount;
+    document.querySelector('#roster-former-count').textContent = formerCount;
+    document.querySelector('#roster-current').setAttribute('aria-pressed', String(rosterGroup === 'current'));
+    document.querySelector('#roster-former').setAttribute('aria-pressed', String(rosterGroup === 'former'));
+    notice.textContent = `${currentCount} current · ${formerCount} former · ${rosterPlayers.reduce((sum, player) => sum + player.loot.length, 0)} awards`;
     renderGuildRoster();
   } catch (error) {
     if (request === rosterRequest && !guildRoster.hidden) { notice.textContent = error.message; notice.className = 'message error'; }
@@ -634,7 +655,18 @@ document.querySelector('#roster-back-to-raid').addEventListener('click', () => {
   document.querySelector('#roster-back-to-raid').hidden = true;
   openRaidDetail(target.raid, target.guildID);
 });
-document.querySelector('#roster-search').addEventListener('input', () => { selectedRosterKey = null; renderGuildRoster(); });
+document.querySelector('#roster-search').addEventListener('input', () => { selectedRosterKey = null; rosterLookupName = ''; renderGuildRoster(); });
+for (const [selector, group] of [['#roster-current', 'current'], ['#roster-former', 'former']]) {
+  document.querySelector(selector).addEventListener('click', () => {
+    rosterGroup = group;
+    selectedRosterKey = null;
+    rosterLookupName = '';
+    document.querySelector('#roster-search').value = '';
+    document.querySelector('#roster-current').setAttribute('aria-pressed', String(group === 'current'));
+    document.querySelector('#roster-former').setAttribute('aria-pressed', String(group === 'former'));
+    renderGuildRoster();
+  });
+}
 
 document.querySelector('#load-more-raids').addEventListener('click', async () => {
   if (!selectedGuildID || dashboard.hidden) return;

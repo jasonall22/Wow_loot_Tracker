@@ -27,6 +27,7 @@ export function fakeBackend(overrides = {}) {
     raid: async () => raid,
     drops: async () => [{ guild_id: GUILD, raid_id: RAID, id: 'drop-1', item_name: 'Test item', boss: 'Test boss' }],
     members: async () => [{ guild_id: GUILD, raid_id: RAID, character_key: 'test-realm', name: 'Test-Realm', present: true }],
+    guild_roster: async () => [{ guild_id: GUILD, character_key: 'test-realm', name: 'Test-Realm', class: 'MAGE', rank_name: 'Member', rank_index: 4, is_current: true }],
     roster_members: async () => [{ guild_id: GUILD, raid_id: RAID, character_key: 'test-realm', name: 'Test-Realm', class: 'MAGE' }],
     roster_drops: async () => [{ guild_id: GUILD, raid_id: RAID, id: 'drop-1', item_name: 'Test item', winner: 'Test-Realm', award_type: 'MS' }],
     visits: async () => [{ guild_id: GUILD, raid_id: RAID, id: 'visit-1', character_key: 'test-realm' }],

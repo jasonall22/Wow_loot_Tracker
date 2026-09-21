@@ -1,7 +1,8 @@
 import { jsonResponse, errorResponse, badRequest, forbidden, unavailable } from '../src/errors.mjs';
 import { requireID, requirePermission } from '../src/permissions.mjs';
 import { bearerToken, createSupabaseBackend, loadConfig, loadServerConfig } from '../src/supabase.mjs';
-import { databaseRecords } from '../src/ingestion.mjs';
+import { databaseGuildRoster, databaseRecords } from '../src/ingestion.mjs';
+import { syncGuildRoster } from '../src/guild-roster-sync.mjs';
 import { normalizeRaidExport } from '../src/manual-import.mjs';
 
 const MAX_IMPORT_REQUEST_BYTES = 1_048_576;
@@ -50,6 +51,8 @@ export function createImportHandler({
         return jsonResponse({ error: { code: 'raid_permanently_deleted', message: 'This raid was permanently deleted and cannot be imported again.' } }, 410);
       }
       if (!['accepted', 'duplicate', 'stale'].includes(result.upload_status)) throw unavailable();
+      await syncGuildRoster({ config, fetchImpl, guildID: guild, capturedAt: upload.capturedAt,
+        members: databaseGuildRoster(upload), timeout: 15000 });
       return jsonResponse({ status: result.upload_status, raid: result.raid_id }, result.upload_status === 'accepted' ? 201 : 200);
     } catch (error) { return errorResponse(error); }
   };

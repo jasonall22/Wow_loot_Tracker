@@ -42,6 +42,25 @@ test('manual upload sends explicit fields with a device digest and no guild chos
   assert.equal(Object.hasOwn(sent.payload, 'guild_id'), false);
 });
 
+test('a verified upload syncs its complete guild roster after resolving the paired guild', async () => {
+  const value = body();
+  value.guildRoster = { members: [
+    { characterKey: 'player', name: 'Player', class: 'MAGE', rankName: 'Raider', rankIndex: 4 },
+  ] };
+  const calls = [];
+  const handle = handler(async (url, options) => {
+    calls.push({ url, payload: JSON.parse(options.body) });
+    if (url.endsWith('/rpc/ingest_apoc_raid')) return Response.json([{ upload_status: 'duplicate', guild_id: guild, raid_id: raidID }]);
+    return Response.json({ status: 'ok' });
+  });
+  const response = await handle(request(value));
+  assert.equal(response.status, 200);
+  assert.match(calls[1].url, /\/rpc\/sync_apoc_guild_roster$/);
+  assert.equal(calls[1].payload.p_guild_id, guild);
+  assert.equal(calls[1].payload.p_members[0].character_key, 'player');
+  assert.equal(calls[1].payload.p_members[0].rank_name, 'Raider');
+});
+
 test('upload rejects missing device proof and malformed records before calling cloud', async () => {
   let called = false;
   const handle = handler(async () => { called = true; return Response.json([]); });

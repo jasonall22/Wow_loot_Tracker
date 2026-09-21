@@ -26,12 +26,17 @@ test('reads only the explicit base64 export from a SavedVariables file', () => {
 });
 
 test('manual import maps to the same source key and records as the bridge', () => {
-  const upload = normalizeRaidExport(snapshot(), '10000000-0000-4000-8000-000000000001');
+  const exported = snapshot();
+  exported.guildRoster = { members: [
+    { name: 'Backup', class: 'HUNTER', rankName: 'Raider', rankIndex: 4 },
+  ] };
+  const upload = normalizeRaidExport(exported, '10000000-0000-4000-8000-000000000001');
   assert.equal(sourceKeyForExport(snapshot()), '57b91d3293f694f3eb55bc0062b43eb2dd5cdc46c2a30ae4dcf74a78f149922d');
   assert.equal(upload.sourceKey, sourceKeyForExport(snapshot()));
   assert.equal(upload.raid.name, 'Black Temple');
   assert.equal(upload.drops[0].awardType, 'MS');
   assert.equal(upload.members[0].visits[0].leftAt, new Date(1789667000 * 1000).toISOString());
+  assert.equal(upload.guildRoster.members[0].characterKey, 'backup');
   assert.match(upload.payloadHash, /^[a-f0-9]{64}$/);
   const invalid = snapshot(); invalid.drops[0].award.at = 0;
   assert.throws(() => normalizeRaidExport(invalid), { status: 400 });
@@ -62,6 +67,31 @@ test('website import requires fresh upload permission and sends no full SavedVar
   assert.equal(response.status, 201);
   assert.equal((await response.json()).raid, RAID);
   assert.equal(called, true);
+});
+
+test('website import syncs an included complete guild roster', async () => {
+  const allowed = fakeBackend({ membership: async () => ({ ...membership, can_upload: true }) });
+  const exported = snapshot();
+  exported.guildRoster = { members: [
+    { name: 'Backup', class: 'HUNTER', rankName: 'Raider', rankIndex: 4 },
+  ] };
+  const calls = [];
+  const handler = createImportHandler({
+    backendFactory: () => allowed.backend,
+    serverConfig: () => ({ origin: 'https://exampleproject.supabase.co', secretKey: 'sb_secret_test' }),
+    fetchImpl: async (url, options) => {
+      calls.push({ url, payload: JSON.parse(options.body) });
+      if (url.endsWith('/rpc/import_apoc_raid')) return Response.json([{ upload_status: 'accepted', guild_id: GUILD, raid_id: RAID }]);
+      return Response.json({ status: 'ok' });
+    },
+  });
+  const response = await handler(new Request('https://portal.invalid/api/import', {
+    method: 'POST', headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ guild: GUILD, export: exported }),
+  }));
+  assert.equal(response.status, 201);
+  assert.match(calls[1].url, /\/rpc\/sync_apoc_guild_roster$/);
+  assert.equal(calls[1].payload.p_members[0].character_key, 'backup');
 });
 
 test('website import reports a permanently deleted raid instead of recreating it', async () => {

@@ -47,6 +47,7 @@ will be implemented after the dedicated cloud projects are approved and configur
 | `?view=guilds` | Current user's active guild memberships (maximum 100) |
 | `?view=context&guild=<uuid>` | Guild display details and current capabilities |
 | `?view=raids&guild=<uuid>` | Raid archive records |
+| `?view=guild_roster&guild=<uuid>` | Current and former in-game guild characters |
 | `?view=raid&guild=<uuid>&raid=<uuid>` | One raid's details |
 | `?view=drops&guild=<uuid>&raid=<uuid>` | Loot, boss and award records |
 | `?view=members&guild=<uuid>&raid=<uuid>` | Captured raid roster/groups |

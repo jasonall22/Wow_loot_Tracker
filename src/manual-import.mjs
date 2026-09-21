@@ -48,8 +48,21 @@ export function normalizeRaidExport(snapshot, id = randomUUID()) {
         return { joinedAt: epoch(visit[0]), leftAt: epoch(visit[1], true) };
       }) };
   });
+  let guildRoster;
+  if (snapshot.guildRoster !== undefined) {
+    if (!snapshot.guildRoster || typeof snapshot.guildRoster !== 'object' || Array.isArray(snapshot.guildRoster) ||
+        Object.keys(snapshot.guildRoster).length !== 1 || !Array.isArray(snapshot.guildRoster.members)) throw badRequest();
+    guildRoster = { members: snapshot.guildRoster.members.map(member => {
+      if (!member || typeof member !== 'object' || Array.isArray(member) ||
+          Object.keys(member).some(key => !['name', 'class', 'rankName', 'rankIndex'].includes(key))) throw badRequest();
+      const name = string(member.name, 1, 200).trim();
+      if (!name) throw badRequest();
+      return { characterKey: name.toLocaleLowerCase(), name,
+        class: string(member.class, 0, 30), rankName: string(member.rankName, 0, 100), rankIndex: member.rankIndex };
+    }) };
+  }
   const upload = { requestId: id, sourceKey: sourceKeyForExport(snapshot), sourceRevision: session.revision,
-    capturedAt: epoch(snapshot.sampledAt), raid, drops, members };
+    capturedAt: epoch(snapshot.sampledAt), raid, drops, members, ...(guildRoster ? { guildRoster } : {}) };
   validateUploadRecords(upload);
   return { ...upload, payloadHash: digestPayload(upload) };
 }

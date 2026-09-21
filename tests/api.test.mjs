@@ -31,7 +31,7 @@ test('member sees guild list without auth IDs, hidden notes or trusted client ro
   assert.ok(!text.includes('secret'));
   assert.ok(!text.includes('user_id'));
 });
-for (const view of ['context', 'raids', 'roster_members', 'roster_drops', 'raid', 'drops', 'members', 'visits']) {
+for (const view of ['context', 'raids', 'guild_roster', 'roster_members', 'roster_drops', 'raid', 'drops', 'members', 'visits']) {
   test(`ordinary member can request ${view}`, async () => {
     const { handle } = setup();
     assert.equal((await handle(request(route(view)))).status, 200);
@@ -47,6 +47,8 @@ test('guild roster reads require membership and reject wrong-guild rows', async 
   assert.equal((await handle(request(route('roster_drops')))).status, 503);
   const { handle: other } = setup({ roster_members: async () => [{ guild_id: OTHER_GUILD, raid_id: RAID, name: 'secret' }] });
   assert.equal((await other(request(route('roster_members')))).status, 503);
+  const { handle: current } = setup({ guild_roster: async () => [{ guild_id: OTHER_GUILD, name: 'secret' }] });
+  assert.equal((await current(request(route('guild_roster')))).status, 503);
 });
 test('only admins can list archived raids for their current guild', async () => {
   const member = setup();

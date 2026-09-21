@@ -74,6 +74,10 @@ test('an open raid detail refreshes a removed drop without a user click', async 
       memberOffsets.push(offset);
       return Response.json({ members: attendance.slice(offset, offset + 200) });
     }
+    if (view === 'guild_roster') return Response.json({ guild_roster: [
+      { character_key: 'player', name: 'Player', class: 'PRIEST', rank_name: 'Raider', rank_index: 4, is_current: true },
+      { character_key: 'former', name: 'Former', class: 'MAGE', rank_name: 'Former member', rank_index: 8, is_current: false },
+    ] });
     if (view === 'roster_members') return Response.json({ roster_members: [{ raid_id: 'raid-1', character_key: 'player', name: 'Player', class: 'PRIEST' }] });
     if (view === 'roster_drops') return Response.json({ roster_drops: [{ raid_id: 'raid-1', id: 'drop-1', item_id: 32336, item_name: 'Kept', winner: 'Player', award_type: 'MS', awarded_at: '2026-09-17T13:00:00Z' }] });
     if (view === 'visits') return Response.json({ visits: [{ character_key: 'raider-1', joined_at: '2026-09-17T13:00:00Z' }] });
@@ -202,6 +206,11 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   assert.equal(get('#roster-list').children.length, 1);
   assert.equal(get('#roster-list').children[0].open, true);
   assert.equal(get('#roster-list').children[0].children[1].children[0].children[0].children.at(-1).textContent, 'Kept');
+  assert.equal(get('#roster-current-count').textContent, 1);
+  assert.equal(get('#roster-former-count').textContent, 1);
+  get('#roster-former').listeners.click();
+  assert.equal(get('#roster-list').children.length, 1);
+  assert.equal(get('#roster-list').children[0].children[0].children[0].children[0].textContent, 'Former');
   assert.equal(get('#roster-back-to-raid').hidden, false);
   get('#roster-back-to-raid').listeners.click();
   await new Promise((resolve) => setImmediate(resolve));

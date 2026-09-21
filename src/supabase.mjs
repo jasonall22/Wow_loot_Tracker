@@ -109,6 +109,10 @@ export function createSupabaseBackend({ config, fetchImpl = globalThis.fetch, no
       return rows('apoc_drops', SELECT.drop, { guild_id: `eq.${guildID}`, source_present: 'eq.true', winner: 'not.is.null' }, token,
         { order: 'awarded_at.desc,raid_id.asc,id.asc', limit: String(limit), offset: String(offset) });
     },
+    async guild_roster(guildID, token, { limit, offset }) {
+      return rows('apoc_guild_characters', SELECT.guildCharacter, { guild_id: `eq.${guildID}` }, token,
+        { order: 'is_current.desc,name.asc,character_key.asc', limit: String(limit), offset: String(offset) });
+    },
     async raid(guildID, raidID, token) {
       const result = await rows('apoc_raids', SELECT.raid, { guild_id: `eq.${guildID}`, id: `eq.${raidID}`, deleted_at: 'is.null' }, token, { limit: '2' });
       if (result.length > 1) throw unavailable();
