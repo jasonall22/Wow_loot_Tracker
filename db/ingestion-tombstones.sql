@@ -14,6 +14,20 @@ alter table public.apoc_raid_tombstones enable row level security;
 revoke all on public.apoc_raid_tombstones from public, anon, authenticated;
 grant select, insert, update, delete on public.apoc_raid_tombstones to service_role;
 
+-- Raids permanently removed before tombstones existed can leave upload
+-- receipts behind. Convert those orphaned sources into tombstones so a newly
+-- paired bridge confirms them as deleted instead of hitting a receipt conflict.
+insert into public.apoc_raid_tombstones(guild_id, source_key, raid_id, deleted_at)
+select distinct on (u.guild_id, u.source_key)
+  u.guild_id, u.source_key, gen_random_uuid(), now()
+from public.apoc_upload_receipts as u
+where not exists (
+  select 1 from public.apoc_raids as r
+   where r.guild_id = u.guild_id and r.source_key = u.source_key
+)
+order by u.guild_id, u.source_key
+on conflict (guild_id, source_key) do nothing;
+
 -- Preserve the current ingestion implementation as the core exactly once.
 -- The public RPC name becomes a small guard that rejects tombstoned sources.
 do $rename$
@@ -58,6 +72,21 @@ begin
        or v_receipt.source_revision <> p_source_revision
        or v_receipt.payload_hash <> p_payload_hash) then
     raise exception 'request id reused with different upload' using errcode = '22023';
+  end if;
+
+  -- Defensive repair for any legacy orphan discovered after the one-time
+  -- backfill. A manual website import can deliberately clear this tombstone;
+  -- live bridge sync must never resurrect the source automatically.
+  if not exists (
+    select 1 from public.apoc_raids as r
+      where r.guild_id = v_device.guild_id and r.source_key = p_source_key
+  ) and exists (
+    select 1 from public.apoc_upload_receipts as r
+      where r.guild_id = v_device.guild_id and r.source_key = p_source_key
+  ) then
+    insert into public.apoc_raid_tombstones(guild_id, source_key, raid_id, deleted_at)
+    values (v_device.guild_id, p_source_key, gen_random_uuid(), now())
+    on conflict on constraint apoc_raid_tombstones_pkey do nothing;
   end if;
 
   if exists (

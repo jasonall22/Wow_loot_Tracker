@@ -88,5 +88,7 @@ test('admin SQL archives first and permanently deletes only into an ingestion to
   assert.match(ingestion, /enable row level security/);
   assert.match(ingestion, /revoke all on public\.apoc_raid_tombstones from public, anon, authenticated/);
   assert.match(ingestion, /rename to ingest_apoc_raid_core/);
+  assert.match(ingestion, /insert into public\.apoc_raid_tombstones[\s\S]*from public\.apoc_upload_receipts as u[\s\S]*not exists \([\s\S]*from public\.apoc_raids as r/i);
+  assert.match(ingestion, /if not exists \([\s\S]*from public\.apoc_raids as r[\s\S]*and exists \([\s\S]*from public\.apoc_upload_receipts as r[\s\S]*insert into public\.apoc_raid_tombstones/i);
   assert.match(ingestion, /from public\.apoc_raid_tombstones as t[\s\S]*upload_status := 'duplicate'/);
 });
