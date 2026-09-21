@@ -250,12 +250,13 @@ test('guild sections and connection button sit in the full-width top menu', () =
   assert.match(css, /\.dashboard-topbar\s*\{[^}]*justify-content:\s*space-between/);
 });
 
-test('raid archive follows compact overview cards in a single full-width column', () => {
+test('overview cards sit beside guild identity and archive stays below', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
-  assert.match(html, /class="dashboard-content"[\s\S]*class="dashboard-main"[\s\S]*class="metrics"[\s\S]*class="dashboard-archive"/);
+  assert.match(html, /class="dashboard-heading"[\s\S]*id="dashboard-title"[\s\S]*class="dashboard-main"[\s\S]*class="metrics"[\s\S]*class="dashboard-content"[\s\S]*class="dashboard-archive"/);
   assert.match(css, /\.dashboard-content\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
-  assert.match(css, /\.dashboard-main\s*\{[^}]*width:\s*min\(100%,\s*440px\)/);
+  assert.match(css, /\.dashboard-heading \.dashboard-main\s*\{[^}]*flex:\s*0 1 440px/);
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.dashboard-heading\s*\{\s*flex-wrap:\s*wrap/);
 });
 
 test('live portal refreshes the signed-in session before polling', async () => {

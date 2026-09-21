@@ -306,7 +306,6 @@ async function openDashboard(entry) {
   setGuildNav('overview');
   document.querySelector('#dashboard-title').textContent = details.name ?? 'Guild';
   document.querySelector('#dashboard-subtitle').textContent = [details.realm, details.faction].filter(Boolean).join(' · ');
-  document.querySelector('#dashboard-role').textContent = membership.role ?? 'member';
   document.querySelector('#access-label').textContent = membership.role === 'admin' ? 'Admin' : membership.role === 'officer' ? 'Officer' : 'Member';
   pairingButton.hidden = entry.permissions?.uploadRaids !== true;
   document.querySelector('#manage-members').hidden = entry.permissions?.manageMembers !== true;
