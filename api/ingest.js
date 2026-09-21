@@ -1,5 +1,5 @@
 import { jsonResponse, errorResponse, unauthorized, unavailable } from '../src/errors.mjs';
-import { digestSecret, parseUploadBody } from '../src/ingestion.mjs';
+import { databaseRecords, digestSecret, parseUploadBody } from '../src/ingestion.mjs';
 import { loadServerConfig } from '../src/supabase.mjs';
 
 const databasePayload = body => ({
@@ -9,20 +9,7 @@ const databasePayload = body => ({
   p_source_revision: body.sourceRevision,
   p_payload_hash: body.payloadHash,
   p_captured_at: body.capturedAt,
-  p_raid: {
-    name: body.raid.name, run_id: body.raid.runId,
-    created_at: body.raid.createdAt, closed_at: body.raid.closedAt,
-  },
-  p_drops: body.drops.map(drop => ({
-    id: drop.id, item_id: drop.itemId, item_name: drop.itemName,
-    boss: drop.boss, dropped_at: drop.droppedAt, winner: drop.winner,
-    award_type: drop.awardType, awarded_at: drop.awardedAt, award_note: drop.awardNote,
-  })),
-  p_members: body.members.map(member => ({
-    character_key: member.characterKey, name: member.name, class: member.class,
-    raid_group: member.raidGroup, present: member.present,
-    visits: member.visits.map(visit => ({ joined_at: visit.joinedAt, left_at: visit.leftAt })),
-  })),
+  ...databaseRecords(body),
 });
 
 export function createIngestHandler({ serverConfig = () => loadServerConfig(), fetchImpl = globalThis.fetch } = {}) {

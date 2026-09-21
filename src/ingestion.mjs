@@ -54,6 +54,23 @@ export function digestPayload({ raid, drops, members }) {
   return createHash('sha256').update(canonicalJSON({ raid, drops, members }), 'utf8').digest('hex');
 }
 
+export function databaseRecords(body) {
+  return {
+    p_raid: { name: body.raid.name, run_id: body.raid.runId,
+      created_at: body.raid.createdAt, closed_at: body.raid.closedAt },
+    p_drops: body.drops.map(drop => ({
+      id: drop.id, item_id: drop.itemId, item_name: drop.itemName,
+      boss: drop.boss, dropped_at: drop.droppedAt, winner: drop.winner,
+      award_type: drop.awardType, awarded_at: drop.awardedAt, award_note: drop.awardNote,
+    })),
+    p_members: body.members.map(member => ({
+      character_key: member.characterKey, name: member.name, class: member.class,
+      raid_group: member.raidGroup, present: member.present,
+      visits: member.visits.map(visit => ({ joined_at: visit.joinedAt, left_at: visit.leftAt })),
+    })),
+  };
+}
+
 export function validateUploadRecords(body) {
   const { raid, drops, members } = body;
   if (!exact(raid, ['name', 'runId', 'createdAt', 'closedAt']) ||

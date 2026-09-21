@@ -1,4 +1,5 @@
 import { buildLootRoster } from './src/roster.mjs';
+import { extractRaidExport } from './src/export-file.mjs';
 
 const state = { config: null, session: null };
 const shell = document.querySelector('.shell');
@@ -15,6 +16,8 @@ const guildList = document.querySelector('#guild-list');
 const guildMessage = document.querySelector('#guild-message');
 const dashboardMessage = document.querySelector('#dashboard-message');
 const pairingButton = document.querySelector('#create-pairing');
+const importButton = document.querySelector('#import-raid');
+const importDialog = document.querySelector('#import-dialog');
 const pairingDialog = document.querySelector('#pairing-dialog');
 const pairingResult = document.querySelector('#pairing-result');
 const pairingCode = document.querySelector('#pairing-code');
@@ -27,6 +30,8 @@ const membersNotice = document.querySelector('#members-dialog-message');
 let memberRows = [];
 let pairingRequest = null;
 let selectedGuildID = null;
+let selectedGuildName = '';
+let pendingRaidExport = null;
 let guilds = [];
 let activeRaid = null;
 let returnRaid = null;
@@ -289,12 +294,14 @@ async function loadGuilds() {
 
 async function openDashboard(entry) {
   if (pairingDialog.open) pairingDialog.close();
+  if (importDialog.open) importDialog.close();
   if (membersDialog.open) membersDialog.close();
   if (raidDialog.open) raidDialog.close();
   if (awardDialog.open) awardDialog.close();
   const details = entry.guild ?? {};
   const membership = entry.membership ?? {};
   selectedGuildID = details.id;
+  selectedGuildName = details.name ?? '';
   activeRaid = null;
   returnRaid = null;
   guildRoster.hidden = true;
@@ -312,6 +319,7 @@ async function openDashboard(entry) {
   document.querySelector('#dashboard-subtitle').textContent = [details.realm, details.faction].filter(Boolean).join(' · ');
   document.querySelector('#access-label').textContent = membership.role === 'admin' ? 'Admin' : membership.role === 'officer' ? 'Officer' : 'Member';
   pairingButton.hidden = entry.permissions?.uploadRaids !== true;
+  importButton.hidden = entry.permissions?.uploadRaids !== true;
   document.querySelector('#manage-members').hidden = entry.permissions?.manageMembers !== true;
   const raidList = document.querySelector('#raid-list');
   raidList.replaceChildren();
@@ -546,6 +554,76 @@ pairingDialog.addEventListener('close', () => {
 });
 
 document.querySelector('#close-pairing').addEventListener('click', () => pairingDialog.close());
+
+importButton.addEventListener('click', () => {
+  if (!selectedGuildID || !state.session) return;
+  pendingRaidExport = null;
+  document.querySelector('#import-file').value = '';
+  document.querySelector('#import-preview').textContent = '';
+  document.querySelector('#import-message').textContent = '';
+  document.querySelector('#submit-import').disabled = true;
+  importDialog.showModal();
+});
+document.querySelector('#close-import').addEventListener('click', () => importDialog.close());
+document.querySelector('#import-file').addEventListener('change', async (event) => {
+  const preview = document.querySelector('#import-preview');
+  const message = document.querySelector('#import-message');
+  const submit = document.querySelector('#submit-import');
+  pendingRaidExport = null;
+  submit.disabled = true;
+  preview.textContent = '';
+  message.textContent = '';
+  const file = event.target.files?.[0];
+  if (!file) return;
+  try {
+    if (file.size > 50_000_000) throw new Error('That saved file is too large to read in the browser.');
+    const raid = extractRaidExport(await file.text());
+    if (raid.guild.toLocaleLowerCase() !== selectedGuildName.toLocaleLowerCase()) {
+      throw new Error(`This export belongs to ${raid.guild}, not ${selectedGuildName}. Select the correct guild first.`);
+    }
+    if (!raid.session?.name || raid.drops.length > 500 || raid.members.length > 200) {
+      throw new Error('This raid export is incomplete or exceeds the import limit.');
+    }
+    const encoded = JSON.stringify({ guild: selectedGuildID, export: raid });
+    if (new TextEncoder().encode(encoded).byteLength > 1_048_576) throw new Error('This raid export is too large to import.');
+    pendingRaidExport = raid;
+    preview.textContent = `${raid.session.name} · ${raid.drops.length} loot records · ${raid.members.length} raiders · exported by ${raid.sender}`;
+    submit.disabled = false;
+  } catch (error) {
+    message.textContent = error.message;
+    message.className = 'message error';
+  }
+});
+document.querySelector('#submit-import').addEventListener('click', async () => {
+  if (!pendingRaidExport || !selectedGuildID) return;
+  const message = document.querySelector('#import-message');
+  const submit = document.querySelector('#submit-import');
+  const guild = selectedGuildID;
+  const raid = pendingRaidExport;
+  submit.disabled = true;
+  message.textContent = 'Importing raid…';
+  message.className = 'message';
+  try {
+    const response = await portalFetch('/api/import', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ guild, export: raid }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error?.message ?? 'Could not import this raid.');
+    if (guild !== selectedGuildID || !importDialog.open) return;
+    if (result.status === 'stale') {
+      message.textContent = 'This raid is already on the website at the same or a newer revision. No data was changed.';
+      return;
+    }
+    importDialog.close();
+    raidArchiveSignature = '';
+    await loadRaidArchive(guild);
+    dashboardMessage.textContent = result.status === 'accepted' ? 'Raid imported from the backup looter’s file.' : 'This raid was already imported.';
+  } catch (error) {
+    message.textContent = error.message;
+    message.className = 'message error';
+  } finally { submit.disabled = false; }
+});
 
 pairingButton.addEventListener('click', async () => {
   if (pairingDialog.open || !selectedGuildID || !state.session) return;
