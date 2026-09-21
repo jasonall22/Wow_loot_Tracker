@@ -8,6 +8,7 @@ const inviteSetup = document.querySelector('#invite-setup');
 const dashboard = document.querySelector('#dashboard');
 const raidDetail = document.querySelector('#raid-detail');
 const guildRoster = document.querySelector('#guild-roster');
+const guildNav = document.querySelector('#guild-nav');
 const form = document.querySelector('#sign-in-form');
 const message = document.querySelector('#message');
 const guildList = document.querySelector('#guild-list');
@@ -199,6 +200,7 @@ function sessionExpired() {
   dashboard.hidden = true;
   raidDetail.hidden = true;
   guildRoster.hidden = true;
+  guildNav.hidden = true;
   signedOut.hidden = false;
   shell.classList.remove('workspace-view');
   setMessage('Your session expired. Sign in again to see live updates.', 'error');
@@ -300,6 +302,8 @@ async function openDashboard(entry) {
   shell.classList.add('workspace-view');
   signedIn.hidden = true;
   dashboard.hidden = false;
+  guildNav.hidden = false;
+  setGuildNav('overview');
   document.querySelector('#dashboard-title').textContent = details.name ?? 'Guild';
   document.querySelector('#dashboard-subtitle').textContent = [details.realm, details.faction].filter(Boolean).join(' · ');
   document.querySelector('#dashboard-role').textContent = membership.role ?? 'member';
@@ -379,6 +383,27 @@ async function loadGuildPages(guildID, view, maxRows = 20000) {
   throw new Error('The roster is too large to load completely. Please contact the site administrator.');
 }
 
+function setGuildNav(section) {
+  for (const [name, selector] of [['overview', '#nav-overview'], ['roster', '#open-roster']]) {
+    const button = document.querySelector(selector);
+    if (name === section) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  }
+}
+
+function returnToOverview() {
+  rosterRequest += 1;
+  hideItemTooltip();
+  activeRaid = null;
+  guildRoster.hidden = true;
+  raidDetail.hidden = true;
+  dashboard.hidden = false;
+  setGuildNav('overview');
+  refreshVisible();
+}
+
+document.querySelector('#nav-overview').addEventListener('click', returnToOverview);
+
 function renderGuildRoster() {
   const list = document.querySelector('#roster-list');
   const search = document.querySelector('#roster-search').value.trim().toLocaleLowerCase();
@@ -442,7 +467,9 @@ function renderGuildRoster() {
 document.querySelector('#open-roster').addEventListener('click', async () => {
   if (!selectedGuildID) return;
   const guildID = selectedGuildID; const request = ++rosterRequest;
-  dashboard.hidden = true; guildRoster.hidden = false;
+  activeRaid = null;
+  dashboard.hidden = true; raidDetail.hidden = true; guildRoster.hidden = false;
+  setGuildNav('roster');
   document.querySelector('#roster-list').replaceChildren();
   const notice = document.querySelector('#roster-message'); notice.textContent = 'Loading tracked players and awards…'; notice.className = 'message';
   try {
@@ -456,9 +483,6 @@ document.querySelector('#open-roster').addEventListener('click', async () => {
   } catch (error) {
     if (request === rosterRequest && !guildRoster.hidden) { notice.textContent = error.message; notice.className = 'message error'; }
   }
-});
-document.querySelector('#back-from-roster').addEventListener('click', () => {
-  rosterRequest += 1; hideItemTooltip(); guildRoster.hidden = true; dashboard.hidden = false; refreshVisible();
 });
 document.querySelector('#roster-search').addEventListener('input', renderGuildRoster);
 
@@ -535,6 +559,7 @@ async function openRaidDetail(raid, guildID) {
   raidDetailSignature = '';
   dashboard.hidden = true;
   raidDetail.hidden = false;
+  setGuildNav('');
   document.querySelector('#manage-raid').hidden = !canManageRaids;
   document.querySelector('#detail-title').textContent = raid.name ?? 'Raid';
   document.querySelector('#detail-meta').textContent = raid.created_at ? new Date(raid.created_at).toLocaleString() : 'Date unavailable';
@@ -801,6 +826,7 @@ document.querySelector('#delete-raid').addEventListener('click', async () => {
     activeRaid = null;
     raidDetail.hidden = true;
     dashboard.hidden = false;
+    setGuildNav('overview');
     raidArchiveSignature = '';
     await loadRaidArchive(guildID);
   } catch (error) { notice.textContent = error.message; notice.className = 'message error'; }
@@ -919,6 +945,7 @@ document.querySelector('#save-member').addEventListener('click', async () => {
       if (error.status !== 403) throw error;
       membersDialog.close();
       dashboard.hidden = true;
+      guildNav.hidden = true;
       signedIn.hidden = false;
       shell.classList.remove('workspace-view');
       await loadGuilds();
@@ -928,6 +955,7 @@ document.querySelector('#save-member').addEventListener('click', async () => {
 });
 
 function showSignedIn(checkInvites = false) {
+  guildNav.hidden = true;
   inviteSetup.hidden = true;
   signedOut.hidden = true;
   signedIn.hidden = false;
@@ -996,10 +1024,11 @@ document.querySelector('#back-to-guilds').addEventListener('click', () => {
   if (pairingDialog.open) pairingDialog.close();
   if (membersDialog.open) membersDialog.close();
   dashboard.hidden = true;
+  guildNav.hidden = true;
   signedIn.hidden = false;
   shell.classList.remove('workspace-view');
 });
-document.querySelector('#back-to-dashboard').addEventListener('click', () => { activeRaid = null; raidDetail.hidden = true; dashboard.hidden = false; refreshVisible(); });
+document.querySelector('#back-to-dashboard').addEventListener('click', returnToOverview);
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -1036,6 +1065,7 @@ document.querySelector('#sign-out').addEventListener('click', () => {
   signedIn.hidden = true;
   inviteSetup.hidden = true;
   signedOut.hidden = false;
+  guildNav.hidden = true;
   shell.classList.remove('workspace-view');
   form.reset();
 });

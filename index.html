@@ -54,14 +54,18 @@
           </form>
           <p id="invite-setup-message" class="message" role="status" aria-live="polite"></p>
         </div>
-        <div id="dashboard" hidden>
-          <div class="dashboard-topbar">
+        <header id="guild-nav" class="dashboard-topbar" hidden>
             <img class="logo dashboard-logo" src="/assets/apoc-logo.png" alt="APOC crest">
+            <nav class="guild-menu" aria-label="Guild sections">
+              <button id="nav-overview" class="guild-menu-link" type="button">Overview</button>
+              <button id="open-roster" class="guild-menu-link" type="button">Loot roster</button>
+            </nav>
             <div class="dashboard-actions">
               <button id="manage-members" class="secondary compact-button" type="button" hidden>Manage members</button>
               <button id="create-pairing" class="pairing-trigger" type="button" hidden>Connection code</button>
             </div>
-          </div>
+        </header>
+        <div id="dashboard" hidden>
           <button id="back-to-guilds" class="back" type="button">← Your guilds</button>
           <div class="dashboard-heading">
             <div>
@@ -87,10 +91,8 @@
               <p id="dashboard-message" class="message" role="status" aria-live="polite"></p>
             </section>
           </div>
-          <button id="open-roster" class="secondary roster-trigger" type="button">View guild loot roster →</button>
         </div>
         <div id="guild-roster" hidden>
-          <button id="back-from-roster" class="back" type="button">← Guild overview</button>
           <p class="eyebrow">GUILD LOOT ROSTER</p>
           <h2>Players &amp; awarded loot</h2>
           <p class="muted">Recorded raid participants and awards. This is not a live guild-membership or equipped-gear list.</p>

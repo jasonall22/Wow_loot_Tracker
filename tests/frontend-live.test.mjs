@@ -242,10 +242,11 @@ test('raid archive loads older pages and refreshes the visible range', async () 
   assert.equal(get('#raid-count').textContent, '54');
 });
 
-test('connection button sits in the same full-width header row as the crest', () => {
+test('guild sections and connection button sit in the full-width top menu', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
-  assert.match(html, /class="dashboard-topbar"[\s\S]*dashboard-logo[\s\S]*id="create-pairing"[\s\S]*<\/div>/);
+  assert.match(html, /id="guild-nav" class="dashboard-topbar"[\s\S]*dashboard-logo[\s\S]*id="nav-overview"[\s\S]*id="open-roster"[\s\S]*id="create-pairing"[\s\S]*<\/header>/);
+  assert.doesNotMatch(html, /class="roster-trigger"/);
   assert.match(css, /\.dashboard-topbar\s*\{[^}]*justify-content:\s*space-between/);
 });
 
