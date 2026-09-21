@@ -71,6 +71,8 @@ test('an open raid detail refreshes a removed drop without a user click', async 
       memberOffsets.push(offset);
       return Response.json({ members: attendance.slice(offset, offset + 200) });
     }
+    if (view === 'roster_members') return Response.json({ roster_members: [{ raid_id: 'raid-1', character_key: 'player', name: 'Player', class: 'PRIEST' }] });
+    if (view === 'roster_drops') return Response.json({ roster_drops: [{ raid_id: 'raid-1', id: 'drop-1', item_id: 32336, item_name: 'Kept', winner: 'Player', award_type: 'MS', awarded_at: '2026-09-17T13:00:00Z' }] });
     if (view === 'visits') return Response.json({ visits: [{ character_key: 'raider-1', joined_at: '2026-09-17T13:00:00Z' }] });
     if (url.pathname === '/api/item') {
       assert.equal(url.searchParams.get('format'), '2');
@@ -125,15 +127,17 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   assert.equal(lootGroups()[1].children[0].children[0].textContent, 'Trash');
   assert.deepEqual(lootGroups()[0].children[1].children[0].children.map((column) => column.textContent), ['Item', 'Winner', 'Award']);
   assert.equal(lootRows()[0].children[1].textContent, 'Off-roster');
-  assert.equal(lootRows()[0].children[1].className, 'loot-winner');
+  assert.equal(lootRows()[0].children[1].className, 'loot-winner loot-winner-link');
   assert.equal(lootRows()[0].children[2].textContent, 'MS');
   context.sampleLoot = new Element();
   new Script("renderDropRow(sampleLoot, { item_name: 'For Player', winner: 'Player-Realm', award_type: 'OS' }); renderDropRow(sampleLoot, { item_name: 'Dust', award_type: 'DE' }); renderDropRow(sampleLoot, { item_name: 'Banked', award_type: 'GB' });").runInContext(context);
-  assert.equal(context.sampleLoot.children[0].children[1].className, 'loot-winner class-priest');
+  assert.equal(context.sampleLoot.children[0].children[1].className, 'loot-winner loot-winner-link class-priest');
   assert.equal(context.sampleLoot.children[0].children[2].textContent, 'OS');
   assert.equal(context.sampleLoot.children[1].children[1].textContent, '—');
+  assert.equal(context.sampleLoot.children[1].children[1].listeners.click, undefined);
   assert.equal(context.sampleLoot.children[1].children[2].textContent, 'DE');
   assert.equal(context.sampleLoot.children[2].children[2].textContent, 'Guild');
+  assert.equal(new Script("findLootPlayer([{ key: 'a', name: 'Alex-A' }, { key: 'b', name: 'Alex-B' }], 'Alex')").runInContext(context), null);
   const itemButton = lootRows()[0].children[0];
   assert.equal(itemButton.children[0].src, '/api/item?id=32336&icon=1');
   await new Promise((resolve) => setImmediate(resolve));
@@ -183,8 +187,21 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   assert.equal(adminActions.at(-1).action, 'edit_drop');
   assert.equal(adminActions.at(-1).winner, 'Player');
   assert.equal(lootRows()[0].children[1].textContent, 'Player');
-  assert.equal(lootRows()[0].children[1].className, 'loot-winner class-priest');
+  assert.equal(lootRows()[0].children[1].className, 'loot-winner loot-winner-link class-priest');
   assert.equal(lootRows()[0].children[2].textContent, 'MS');
+  await lootRows()[0].children[1].listeners.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(get('#raid-detail').hidden, true);
+  assert.equal(get('#guild-roster').hidden, false);
+  assert.equal(get('#roster-search').value, 'Player');
+  assert.equal(get('#roster-list').children.length, 1);
+  assert.equal(get('#roster-list').children[0].open, true);
+  assert.equal(get('#roster-list').children[0].children[1].children[0].children[0].children.at(-1).textContent, 'Kept');
+  assert.equal(get('#roster-back-to-raid').hidden, false);
+  get('#roster-back-to-raid').listeners.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(get('#raid-detail').hidden, false);
+  assert.equal(get('#guild-roster').hidden, true);
   get('#manage-raid').listeners.click();
   await get('#delete-raid').listeners.click();
   assert.equal(adminActions.at(-1).action, 'delete_raid');

@@ -114,6 +114,9 @@ input:focus { border-color: var(--wow-gold); box-shadow: 0 0 0 3px rgba(223, 173
 .loot-icon { flex: none; width: 38px; height: 38px; object-fit: cover; border: 1px solid #8b7145; border-radius: 5px; background: #0e1521; }
 .loot-row > span { min-width: 0; align-self: center; font-size: 12px; }
 .loot-row .loot-winner { color: #bac5d2; overflow-wrap: anywhere; }
+.loot-row .loot-winner-link { width: fit-content; min-width: 0; justify-self: start; align-self: center; margin: 0; padding: 0; border: 0; background: none; text-align: left; font-size: 12px; font-weight: 600; }
+.loot-row .loot-winner-link:hover { filter: none; text-decoration: underline; text-underline-offset: 3px; }
+.loot-row .loot-winner-link:focus-visible { outline: 2px solid var(--wow-gold-bright); outline-offset: 3px; }
 .loot-row .loot-winner.class-warrior { color: #c69b6d; }
 .loot-row .loot-winner.class-paladin { color: #f48cba; }
 .loot-row .loot-winner.class-hunter { color: #aad372; }

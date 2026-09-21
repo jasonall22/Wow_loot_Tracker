@@ -29,7 +29,9 @@ let pairingRequest = null;
 let selectedGuildID = null;
 let guilds = [];
 let activeRaid = null;
+let returnRaid = null;
 let rosterPlayers = [];
+let selectedRosterKey = null;
 let rosterRequest = 0;
 let raidMembers = [];
 let editingDrop = null;
@@ -189,6 +191,7 @@ function sessionExpired() {
   if (awardDialog.open) awardDialog.close();
   state.session = null;
   activeRaid = null;
+  returnRaid = null;
   selectedGuildID = null;
   canManageRaids = false;
   sessionStorage.removeItem('apoc_session');
@@ -293,6 +296,7 @@ async function openDashboard(entry) {
   const membership = entry.membership ?? {};
   selectedGuildID = details.id;
   activeRaid = null;
+  returnRaid = null;
   guildRoster.hidden = true;
   rosterRequest += 1;
   canManageRaids = entry.permissions?.manageRaids === true;
@@ -390,10 +394,23 @@ function setGuildNav(section) {
   }
 }
 
+function findLootPlayer(players, winnerName) {
+  const name = String(winnerName || '').trim().toLocaleLowerCase();
+  if (!name) return null;
+  const exact = players.filter(player => String(player.name || '').trim().toLocaleLowerCase() === name);
+  if (exact.length === 1) return exact[0];
+  if (exact.length > 1) return null;
+  const short = name.split('-')[0];
+  const matches = players.filter(player => String(player.name || '').trim().toLocaleLowerCase().split('-')[0] === short);
+  return matches.length === 1 ? matches[0] : null;
+}
+
 function returnToOverview() {
   rosterRequest += 1;
   hideItemTooltip();
   activeRaid = null;
+  returnRaid = null;
+  selectedRosterKey = null;
   guildRoster.hidden = true;
   raidDetail.hidden = true;
   dashboard.hidden = false;
@@ -407,7 +424,9 @@ function renderGuildRoster() {
   const list = document.querySelector('#roster-list');
   const search = document.querySelector('#roster-search').value.trim().toLocaleLowerCase();
   list.replaceChildren();
-  const visible = rosterPlayers.filter(player => player.name.toLocaleLowerCase().includes(search));
+  const visible = rosterPlayers.filter(player => selectedRosterKey
+    ? player.key === selectedRosterKey
+    : player.name.toLocaleLowerCase().includes(search));
   if (!visible.length) {
     const empty = document.createElement('p'); empty.className = 'muted';
     empty.textContent = rosterPlayers.length ? 'No player matches that search.' : 'No raid participants or awards have been recorded yet.';
@@ -415,6 +434,7 @@ function renderGuildRoster() {
   }
   for (const player of visible) {
     const card = document.createElement('details'); card.className = 'roster-player';
+    card.open = player.key === selectedRosterKey;
     const summary = document.createElement('summary'); summary.className = 'roster-player-summary';
     const identity = document.createElement('span'); identity.className = 'roster-identity';
     const name = document.createElement('strong'); name.textContent = player.name;
@@ -463,12 +483,18 @@ function renderGuildRoster() {
   }
 }
 
-document.querySelector('#open-roster').addEventListener('click', async () => {
+async function openGuildRoster(winnerName = '') {
   if (!selectedGuildID) return;
   const guildID = selectedGuildID; const request = ++rosterRequest;
+  hideItemTooltip();
+  returnRaid = winnerName && !raidDetail.hidden ? activeRaid : null;
   activeRaid = null;
   dashboard.hidden = true; raidDetail.hidden = true; guildRoster.hidden = false;
   setGuildNav('roster');
+  document.querySelector('#roster-back-to-raid').hidden = !returnRaid;
+  const search = document.querySelector('#roster-search');
+  search.value = winnerName;
+  selectedRosterKey = null;
   document.querySelector('#roster-list').replaceChildren();
   const notice = document.querySelector('#roster-message'); notice.textContent = 'Loading tracked players and awards…'; notice.className = 'message';
   try {
@@ -477,13 +503,30 @@ document.querySelector('#open-roster').addEventListener('click', async () => {
     ]);
     if (guildRoster.hidden || guildID !== selectedGuildID || request !== rosterRequest) return;
     rosterPlayers = buildLootRoster(members, drops, raids);
+    const matchedPlayer = findLootPlayer(rosterPlayers, winnerName);
+    if (matchedPlayer) {
+      search.value = matchedPlayer.name;
+      selectedRosterKey = matchedPlayer.key;
+    }
     notice.textContent = `${rosterPlayers.length} recorded players · ${rosterPlayers.reduce((sum, player) => sum + player.loot.length, 0)} awards`;
     renderGuildRoster();
   } catch (error) {
     if (request === rosterRequest && !guildRoster.hidden) { notice.textContent = error.message; notice.className = 'message error'; }
   }
+}
+document.querySelector('#open-roster').addEventListener('click', () => openGuildRoster());
+document.querySelector('#roster-back-to-raid').addEventListener('click', () => {
+  const target = returnRaid;
+  if (!target) return;
+  rosterRequest += 1;
+  returnRaid = null;
+  selectedRosterKey = null;
+  hideItemTooltip();
+  guildRoster.hidden = true;
+  document.querySelector('#roster-back-to-raid').hidden = true;
+  openRaidDetail(target.raid, target.guildID);
 });
-document.querySelector('#roster-search').addEventListener('input', renderGuildRoster);
+document.querySelector('#roster-search').addEventListener('input', () => { selectedRosterKey = null; renderGuildRoster(); });
 
 document.querySelector('#load-more-raids').addEventListener('click', async () => {
   if (!selectedGuildID || dashboard.hidden) return;
@@ -732,8 +775,14 @@ function renderDropRow(container, drop) {
       const qualityNames = ['Poor', 'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary', 'Artifact', 'Heirloom'];
       title.setAttribute('aria-label', `${qualityNames[quality]} item: ${name}. Show item details`);
     });
-    const winner = document.createElement('span'); winner.className = 'loot-winner';
     const winnerName = typeof drop.winner === 'string' ? drop.winner.trim() : '';
+    const winner = document.createElement(winnerName && drop.award_type ? 'button' : 'span'); winner.className = 'loot-winner';
+    if (winnerName && drop.award_type) {
+      winner.type = 'button';
+      winner.className += ' loot-winner-link';
+      winner.setAttribute('aria-label', `View tracked loot for ${winnerName}`);
+      winner.addEventListener('click', () => openGuildRoster(winnerName));
+    }
     winner.textContent = winnerName || (drop.award_type ? '—' : 'Unawarded');
     const className = winnerClass(winnerName);
     if (className) winner.className += ` class-${className}`;
