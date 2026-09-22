@@ -1488,6 +1488,8 @@ function selectedMember() { return memberRows.find(member => member.user_id === 
 function populateMemberEditor() {
   const member = selectedMember();
   document.querySelector('#save-member').disabled = !member;
+  document.querySelector('#save-member-name').disabled = !member;
+  document.querySelector('#member-character-name').value = member?.character_name ?? '';
   if (!member) return;
   document.querySelector('#member-role').value = member.role;
   document.querySelector('#member-status').value = member.status;
@@ -1548,6 +1550,29 @@ document.querySelector('#invite-member-form').addEventListener('submit', async (
 });
 document.querySelector('#close-members-dialog').addEventListener('click', () => membersDialog.close());
 memberSelect.addEventListener('change', populateMemberEditor);
+document.querySelector('#save-member-name').addEventListener('click', async () => {
+  const member = selectedMember();
+  if (!member || !selectedGuildID) return;
+  const button = document.querySelector('#save-member-name');
+  button.disabled = true;
+  membersNotice.textContent = 'Saving character name…';
+  membersNotice.className = 'message';
+  try {
+    const response = await portalFetch('/api/member-name', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ guild: selectedGuildID, userId: member.user_id,
+        characterName: document.querySelector('#member-character-name').value.trim() }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error?.message ?? 'Could not update the character name.');
+    await loadAdminMembers();
+    membersNotice.textContent = 'Character name saved.';
+    membersNotice.className = 'message';
+  } catch (error) {
+    membersNotice.textContent = error.message;
+    membersNotice.className = 'message error';
+  } finally { button.disabled = false; }
+});
 document.querySelector('#member-role').addEventListener('change', () => {
   if (document.querySelector('#member-role').value === 'member') document.querySelector('#member-edit').checked = false;
 });

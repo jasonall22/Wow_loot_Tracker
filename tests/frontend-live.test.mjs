@@ -364,6 +364,10 @@ test('member management identifies accounts by character name, not email', () =>
   assert.match(html, /src="\/app\.js\?v=[^"]+"/);
   assert.match(script, /option\.textContent = member\.character_name \|\| 'Character not set'/);
   assert.doesNotMatch(script, /option\.textContent = member\.email/);
+  assert.match(html, /id="members-dialog"[\s\S]*id="member-select"[\s\S]*id="member-character-name"[\s\S]*id="save-member-name"[^>]*>Save character name<\/button>/);
+  assert.match(script, /portalFetch\('\/api\/member-name'/);
+  assert.match(script, /userId: member\.user_id,[\s\S]*characterName: document\.querySelector\('#member-character-name'\)\.value\.trim\(\)/);
+  assert.match(html, /src="\/app\.js\?v=20260922\.9"/);
 });
 
 test('every signed-in member can edit only their own character-name profile', () => {
@@ -373,7 +377,7 @@ test('every signed-in member can edit only their own character-name profile', ()
   assert.match(html, /This does not change your role or permissions/);
   assert.match(script, /portalFetch\(`\/api\/profile\?guild=/);
   assert.match(script, /body: JSON\.stringify\(\{ guild: selectedGuildID, characterName: profileCharacter\.value\.trim\(\) \}\)/);
-  assert.match(html, /src="\/app\.js\?v=20260922\.7"/);
+  assert.match(html, /src="\/app\.js\?v=20260922\.9"/);
 });
 
 test('top-menu logout clears the browser session and revokes only the current Supabase session', async () => {
