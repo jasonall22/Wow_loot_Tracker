@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0c111b">
     <title>Wow Loot Tracker</title>
-    <link rel="stylesheet" href="/styles.css?v=20260922.6">
+    <link rel="icon" type="image/png" href="/assets/apoc-logo.png">
+    <link rel="stylesheet" href="/styles.css?v=20260922.9">
   </head>
   <body>
     <main class="shell">
@@ -92,14 +93,20 @@
               <button id="open-roster" class="guild-menu-link" type="button">Guild loot</button>
               <button id="open-attendance" class="guild-menu-link" type="button">Attendance</button>
             </nav>
-            <div class="dashboard-actions">
-              <button id="open-profile" class="secondary compact-button" type="button">My profile</button>
-              <button id="join-requests" class="secondary compact-button" type="button" hidden>Account requests</button>
-              <button id="manage-members" class="secondary compact-button" type="button" hidden>Manage members</button>
-              <button id="import-raid" class="secondary compact-button" type="button" hidden>Import raid</button>
-              <button id="create-pairing" class="pairing-trigger" type="button" hidden>Connection code</button>
-              <button id="nav-sign-out" class="secondary compact-button" type="button">Log out</button>
-            </div>
+            <details id="guild-actions-menu" class="action-menu">
+              <summary class="action-menu-trigger" aria-label="Open guild actions">
+                <span class="action-menu-label">Guild actions</span>
+                <span class="action-menu-icon" aria-hidden="true"><i></i><i></i><i></i></span>
+              </summary>
+              <div class="dashboard-actions action-menu-panel">
+                <button id="open-profile" class="secondary compact-button" type="button">My profile</button>
+                <button id="join-requests" class="secondary compact-button" type="button" hidden>Account requests</button>
+                <button id="manage-members" class="secondary compact-button" type="button" hidden>Manage members</button>
+                <button id="import-raid" class="secondary compact-button" type="button" hidden>Import raid</button>
+                <button id="create-pairing" class="pairing-trigger" type="button" hidden>Connection code</button>
+                <button id="nav-sign-out" class="secondary compact-button" type="button">Log out</button>
+              </div>
+            </details>
         </header>
         <div id="dashboard" hidden>
           <button id="back-to-guilds" class="back" type="button">← Your guilds</button>

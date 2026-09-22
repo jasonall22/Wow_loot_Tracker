@@ -340,14 +340,16 @@ test('raid archive loads older pages and refreshes the visible range', async () 
   assert.equal(get('#raid-count').textContent, '54');
 });
 
-test('guild sections, profile, connection, and logout sit in the full-width top menu', () => {
+test('guild actions use a dropdown that becomes a hamburger on mobile', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
-  assert.match(html, /id="guild-nav" class="dashboard-topbar"[\s\S]*dashboard-logo[\s\S]*id="nav-overview"[\s\S]*id="open-roster"[\s\S]*id="open-attendance"[\s\S]*id="open-profile"[^>]*>My profile<\/button>[\s\S]*id="join-requests"[\s\S]*id="create-pairing"[\s\S]*id="nav-sign-out"[^>]*>Log out<\/button>[\s\S]*<\/header>/);
+  assert.match(html, /id="guild-nav" class="dashboard-topbar"[\s\S]*dashboard-logo[\s\S]*id="nav-overview"[\s\S]*id="open-roster"[\s\S]*id="open-attendance"[\s\S]*id="guild-actions-menu"[\s\S]*class="action-menu-trigger"[\s\S]*id="open-profile"[^>]*>My profile<\/button>[\s\S]*id="join-requests"[\s\S]*id="create-pairing"[\s\S]*id="nav-sign-out"[^>]*>Log out<\/button>[\s\S]*<\/header>/);
   assert.match(html, /id="open-roster"[^>]*>Guild loot<\/button>/);
   assert.match(html, /id="open-attendance"[^>]*>Attendance<\/button>/);
   assert.doesNotMatch(html, /class="roster-trigger"/);
   assert.match(css, /\.dashboard-topbar\s*\{[^}]*justify-content:\s*space-between/);
+  assert.match(css, /\.action-menu-panel\s*\{[^}]*position:\s*absolute/);
+  assert.match(css, /@media \(max-width:\s*700px\)[\s\S]*\.action-menu-label[^}]*display:\s*none[\s\S]*\.action-menu-icon[^}]*display:\s*grid/);
 });
 
 test('sign-in page collects guild, character, email, and password for approval', () => {

@@ -12,6 +12,7 @@ const raidDetail = document.querySelector('#raid-detail');
 const guildRoster = document.querySelector('#guild-roster');
 const guildAttendance = document.querySelector('#guild-attendance');
 const guildNav = document.querySelector('#guild-nav');
+const guildActionsMenu = document.querySelector('#guild-actions-menu');
 const form = document.querySelector('#sign-in-form');
 const message = document.querySelector('#message');
 const guildList = document.querySelector('#guild-list');
@@ -174,7 +175,17 @@ async function showItemTooltip(anchor, id, name) {
     itemTooltip.replaceChildren(heading, note);
   }
 }
-document.addEventListener('keydown', (event) => { if (event.key === 'Escape') hideItemTooltip(); });
+guildActionsMenu.addEventListener('click', (event) => {
+  if (event.target.closest('button')) guildActionsMenu.open = false;
+});
+document.addEventListener('pointerdown', (event) => {
+  if (guildActionsMenu.open && !guildActionsMenu.contains(event.target)) guildActionsMenu.open = false;
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  hideItemTooltip();
+  guildActionsMenu.open = false;
+});
 
 function setMessage(text, kind = '') {
   message.textContent = text;
