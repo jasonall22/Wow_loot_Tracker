@@ -217,8 +217,10 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   const rankToggles = get('#roster-rank-toggles').children;
   assert.equal(rankToggles.length, 3);
   assert.deepEqual(rankToggles.map(button => button.children[0].textContent), ['Champion', 'Demon', 'Locust']);
+  assert.equal(get('#roster-rank-summary').textContent, 'Filter Guild Ranks (1 selected)');
   assert.equal(get('#roster-rank-help').textContent, '1 of 3 ranks shown. 1 of 3 current members match.');
   rankToggles[1].listeners.click();
+  assert.equal(get('#roster-rank-summary').textContent, 'Filter Guild Ranks (2 selected)');
   assert.equal(get('#roster-current-count').textContent, 2);
   assert.equal(get('#roster-list').children.length, 2);
   assert.deepEqual(get('#roster-list').children.map(card => card.children[0].children[0].children[0].textContent), ['Demon Player', 'Player']);

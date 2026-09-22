@@ -106,12 +106,14 @@
               <button id="roster-current" class="secondary" type="button" aria-pressed="true">Current members <span id="roster-current-count">0</span></button>
               <button id="roster-former" class="secondary" type="button" aria-pressed="false">Former members <span id="roster-former-count">0</span></button>
             </div>
-            <div class="roster-rank-filter">
-              <span id="roster-rank-label" class="roster-rank-filter-label">Guild ranks shown</span>
-              <div id="roster-rank-toggles" class="roster-rank-toggles" role="group" aria-labelledby="roster-rank-label" aria-describedby="roster-rank-help"></div>
-            </div>
+            <details class="roster-rank-filter">
+              <summary id="roster-rank-summary">Filter Guild Ranks</summary>
+              <div class="roster-rank-popover">
+                <p id="roster-rank-help" class="roster-rank-help">Turn each rank on or off. Champion and higher are shown by default.</p>
+                <div id="roster-rank-toggles" class="roster-rank-toggles" role="group" aria-labelledby="roster-rank-summary" aria-describedby="roster-rank-help"></div>
+              </div>
+            </details>
           </div>
-          <p id="roster-rank-help" class="roster-rank-help">Turn each rank on or off. Champion and higher are shown by default.</p>
           <label for="roster-search">Find a player</label>
           <input id="roster-search" type="search" placeholder="Search by character name" autocomplete="off">
           <p id="roster-message" class="message" role="status" aria-live="polite"></p>

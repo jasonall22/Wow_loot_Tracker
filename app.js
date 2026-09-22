@@ -542,6 +542,7 @@ function updateRosterSummary() {
   const totalFormer = rosterPlayers.length - totalCurrent;
   document.querySelector('#roster-current-count').textContent = currentCount;
   document.querySelector('#roster-former-count').textContent = formerCount;
+  document.querySelector('#roster-rank-summary').textContent = `Filter Guild Ranks (${visibleRankCount} selected)`;
   document.querySelector('#roster-rank-help').textContent = `${visibleRankCount} of ${ranks.size} ranks shown. ${currentCount} of ${totalCurrent} current members match.`;
   const notice = document.querySelector('#roster-message');
   notice.textContent = `${currentCount} of ${totalCurrent} current · ${formerCount} of ${totalFormer} former · ${shown.reduce((sum, player) => sum + player.loot.length, 0)} awards shown`;

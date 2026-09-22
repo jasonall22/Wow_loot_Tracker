@@ -29,15 +29,20 @@ button { width: 100%; border: 0; border-radius: 10px; background: #78d7bb; color
 .roster-tabs button { width: auto; margin: 0; padding: 9px 13px; }
 .roster-tabs button[aria-pressed="true"] { border-color: var(--wow-gold); background: #29303b; color: var(--wow-gold-bright); }
 .roster-tabs span { margin-left: 6px; color: #9daabd; }
-.roster-rank-filter { min-width: min(420px, 100%); margin: 0; }
-.roster-rank-filter-label { display: block; color: #c7d1df; font-size: 12px; font-weight: 700; margin-bottom: 8px; }
-.roster-rank-toggles { display: flex; flex-wrap: wrap; gap: 7px; }
-.roster-rank-toggle { display: inline-flex; align-items: center; gap: 7px; width: auto; min-height: 38px; margin: 0; padding: 8px 11px; color: #8390a3; border-color: #384456; font-size: 12px; }
+.roster-rank-filter { position: relative; min-width: min(240px, 100%); margin: 0; }
+.roster-rank-filter > summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 40px; padding: 9px 12px; border: 1px solid #4c4b49; border-radius: 10px; background: #0e1521; color: var(--wow-ivory); cursor: pointer; font-size: 12px; font-weight: 800; list-style: none; }
+.roster-rank-filter > summary::-webkit-details-marker { display: none; }
+.roster-rank-filter > summary::after { content: '▾'; color: var(--wow-gold-bright); transition: transform .15s ease; }
+.roster-rank-filter[open] > summary { border-color: var(--wow-gold); box-shadow: 0 0 0 3px rgba(223, 173, 85, .12); }
+.roster-rank-filter[open] > summary::after { transform: rotate(180deg); }
+.roster-rank-popover { position: absolute; z-index: 30; top: calc(100% + 8px); right: 0; width: min(390px, calc(100vw - 48px)); padding: 14px; border: 1px solid var(--wow-bronze); border-radius: 12px; background: #111a28; box-shadow: 0 18px 50px rgba(0,0,0,.5); }
+.roster-rank-toggles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.roster-rank-toggle { display: inline-flex; align-items: center; justify-content: space-between; gap: 7px; width: 100%; min-height: 38px; margin: 0; padding: 8px 11px; color: #8390a3; border-color: #384456; font-size: 12px; }
 .roster-rank-toggle small { min-width: 20px; padding: 2px 5px; border-radius: 999px; background: #0d1420; color: #9daabd; font-size: 10px; text-align: center; }
 .roster-rank-toggle[aria-pressed="true"] { border-color: var(--wow-gold); background: #29303b; color: var(--wow-gold-bright); }
 .roster-rank-toggle[aria-pressed="true"]::before { content: '✓'; color: #8df0bd; }
 .roster-rank-toggle:focus-visible { outline: 2px solid var(--wow-gold-bright); outline-offset: 2px; }
-.roster-rank-help { color: var(--wow-muted); font-size: 12px; margin: 0 0 18px; }
+.roster-rank-help { color: var(--wow-muted); font-size: 12px; line-height: 1.45; margin: 0 0 12px; }
 .roster-player { border: 1px solid #394152; border-radius: 12px; background: #151e2c; overflow: hidden; }
 .roster-player-summary { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(0, 1fr) auto; align-items: center; gap: 18px; padding: 16px 20px; cursor: pointer; }
 .roster-player-summary::marker { color: var(--wow-gold); }
@@ -64,7 +69,7 @@ button { width: 100%; border: 0; border-radius: 10px; background: #78d7bb; color
 .roster-award-type.award-de { border-color: #6d5a86; background: #21192b; color: #c9a8ff; }
 .roster-award-type.award-gb { border-color: #48688a; background: #142233; color: #83c5ff; }
 @media (max-width: 760px) { .roster-award-header { display: none; }.roster-award { grid-template-columns: 1fr; gap: 8px; padding: 16px 0; }.roster-award-zone, .roster-award-date { display: grid; grid-template-columns: 76px 1fr; gap: 10px; }.roster-award-zone::before, .roster-award-date::before { color: #8fa5c4; content: attr(data-label); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }.roster-award-type { display: grid; grid-template-columns: 76px auto; gap: 10px; align-items: center; border: 0; background: transparent; padding: 0; color: #8df0bd; text-align: left; }.roster-award-type::before { color: #8fa5c4; content: attr(data-label); font-size: 10px; letter-spacing: .1em; }.roster-award-type.award-os, .roster-award-type.award-de, .roster-award-type.award-gb { border: 0; background: transparent; } }
-@media (max-width: 680px) { .roster-controls, .roster-tabs { align-items: stretch; flex-direction: column; }.roster-tabs button { width: 100%; }.roster-rank-filter { width: 100%; }.roster-player-summary { grid-template-columns: 1fr auto; }.roster-icons { grid-column: 1 / -1; grid-row: 2; } }
+@media (max-width: 680px) { .roster-controls, .roster-tabs { align-items: stretch; flex-direction: column; }.roster-tabs button { width: 100%; }.roster-rank-filter { width: 100%; }.roster-rank-popover { right: auto; left: 0; width: 100%; }.roster-player-summary { grid-template-columns: 1fr auto; }.roster-icons { grid-column: 1 / -1; grid-row: 2; } }
 .pairing-trigger { width: auto; margin: 0; padding: 10px 16px; white-space: nowrap; }
 .pairing-dialog { width: min(480px, calc(100% - 32px)); max-height: calc(100vh - 32px); overflow: auto; padding: 32px; border: 1px solid var(--wow-bronze); border-radius: 20px; background: var(--wow-panel); color: #f6f7fb; box-shadow: 0 30px 100px rgba(0,0,0,.6); }
 .pairing-dialog::backdrop { background: rgba(3, 7, 13, .76); backdrop-filter: blur(3px); }
