@@ -24,10 +24,15 @@ button { width: 100%; border: 0; border-radius: 10px; background: #78d7bb; color
 .guild-menu-link[aria-current="page"] { border-color: var(--wow-bronze); background: #29303b; color: var(--wow-gold-bright); }
 .guild-menu-link:focus-visible { outline: 2px solid var(--wow-gold-bright); outline-offset: 2px; }
 .roster-list { display: grid; gap: 10px; margin-top: 24px; }
-.roster-tabs { display: flex; gap: 8px; margin: 22px 0; }
+.roster-controls { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 22px 0 8px; }
+.roster-tabs { display: flex; gap: 8px; margin: 0; }
 .roster-tabs button { width: auto; margin: 0; padding: 9px 13px; }
 .roster-tabs button[aria-pressed="true"] { border-color: var(--wow-gold); background: #29303b; color: var(--wow-gold-bright); }
 .roster-tabs span { margin-left: 6px; color: #9daabd; }
+.roster-rank-filter { min-width: min(280px, 100%); margin: 0; }
+.roster-rank-filter select { width: 100%; margin-top: 8px; border: 1px solid #4c4b49; border-radius: 10px; background: #0e1521; color: var(--wow-ivory); padding: 10px 38px 10px 12px; font: inherit; }
+.roster-rank-filter select:focus { border-color: var(--wow-gold); outline: none; box-shadow: 0 0 0 3px rgba(223, 173, 85, .15); }
+.roster-rank-help { color: var(--wow-muted); font-size: 12px; margin: 0 0 18px; }
 .roster-player { border: 1px solid #394152; border-radius: 12px; background: #151e2c; overflow: hidden; }
 .roster-player-summary { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(0, 1fr) auto; align-items: center; gap: 18px; padding: 16px 20px; cursor: pointer; }
 .roster-player-summary::marker { color: var(--wow-gold); }
@@ -47,7 +52,7 @@ button { width: 100%; border: 0; border-radius: 10px; background: #78d7bb; color
 .roster-award { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid #2b3647; }
 .roster-award .loot-item { flex-shrink: 1; }
 .roster-award-meta { text-align: right; }
-@media (max-width: 680px) { .roster-player-summary { grid-template-columns: 1fr auto; }.roster-icons { grid-column: 1 / -1; grid-row: 2; }.roster-award { align-items: flex-start; flex-direction: column; }.roster-award-meta { text-align: left; } }
+@media (max-width: 680px) { .roster-controls, .roster-tabs { align-items: stretch; flex-direction: column; }.roster-tabs button { width: 100%; }.roster-rank-filter { width: 100%; }.roster-player-summary { grid-template-columns: 1fr auto; }.roster-icons { grid-column: 1 / -1; grid-row: 2; }.roster-award { align-items: flex-start; flex-direction: column; }.roster-award-meta { text-align: left; } }
 .pairing-trigger { width: auto; margin: 0; padding: 10px 16px; white-space: nowrap; }
 .pairing-dialog { width: min(480px, calc(100% - 32px)); max-height: calc(100vh - 32px); overflow: auto; padding: 32px; border: 1px solid var(--wow-bronze); border-radius: 20px; background: var(--wow-panel); color: #f6f7fb; box-shadow: 0 30px 100px rgba(0,0,0,.6); }
 .pairing-dialog::backdrop { background: rgba(3, 7, 13, .76); backdrop-filter: blur(3px); }

@@ -75,8 +75,10 @@ test('an open raid detail refreshes a removed drop without a user click', async 
       return Response.json({ members: attendance.slice(offset, offset + 200) });
     }
     if (view === 'guild_roster') return Response.json({ guild_roster: [
-      { character_key: 'player', name: 'Player', class: 'PRIEST', rank_name: 'Raider', rank_index: 4, is_current: true },
-      { character_key: 'former', name: 'Former', class: 'MAGE', rank_name: 'Former member', rank_index: 8, is_current: false },
+      { character_key: 'player', name: 'Player', class: 'PRIEST', rank_name: 'Champion', rank_index: 4, is_current: true },
+      { character_key: 'demon', name: 'Demon Player', class: 'HUNTER', rank_name: 'Demon', rank_index: 5, is_current: true },
+      { character_key: 'locust', name: 'Locust Player', class: 'ROGUE', rank_name: 'Locust', rank_index: 6, is_current: true },
+      { character_key: 'former', name: 'Former', class: 'MAGE', rank_name: 'Champion', rank_index: 4, is_current: false },
     ] });
     if (view === 'roster_members') return Response.json({ roster_members: [{ raid_id: 'raid-1', character_key: 'player', name: 'Player', class: 'PRIEST' }] });
     if (view === 'roster_drops') return Response.json({ roster_drops: [{ raid_id: 'raid-1', id: 'drop-1', item_id: 32336, item_name: 'Kept', winner: 'Player', award_type: 'MS', awarded_at: '2026-09-17T13:00:00Z' }] });
@@ -208,6 +210,17 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   assert.equal(get('#roster-list').children[0].children[1].children[0].children[0].children.at(-1).textContent, 'Kept');
   assert.equal(get('#roster-current-count').textContent, 1);
   assert.equal(get('#roster-former-count').textContent, 1);
+  assert.equal(get('#roster-rank-filter').value, '4');
+  assert.equal(get('#roster-rank-help').textContent, 'Showing Champion and higher. 1 of 3 current members match.');
+  get('#roster-rank-filter').value = '5';
+  get('#roster-rank-filter').listeners.change({ target: get('#roster-rank-filter') });
+  assert.equal(get('#roster-current-count').textContent, 2);
+  assert.equal(get('#roster-list').children.length, 2);
+  assert.deepEqual(get('#roster-list').children.map(card => card.children[0].children[0].children[0].textContent), ['Demon Player', 'Player']);
+  get('#roster-rank-filter').value = '6';
+  get('#roster-rank-filter').listeners.change({ target: get('#roster-rank-filter') });
+  assert.equal(get('#roster-current-count').textContent, 3);
+  assert.equal(get('#roster-list').children.length, 3);
   get('#roster-former').listeners.click();
   assert.equal(get('#roster-list').children.length, 1);
   assert.equal(get('#roster-list').children[0].children[0].children[0].children[0].textContent, 'Former');
