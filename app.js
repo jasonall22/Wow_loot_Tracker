@@ -822,9 +822,13 @@ function renderGuildAttendance() {
     const row = document.createElement('div'); row.className = 'attendance-row';
     const identity = document.createElement('span'); identity.className = 'attendance-player roster-identity'; identity.setAttribute('data-label', 'Player');
     const name = document.createElement('strong'); name.textContent = player.name;
-    const className = String(player.class || '').trim().toLowerCase().replace(/\s+/g, '');
-    if (WOW_CLASSES.has(className.toUpperCase())) name.className = `class-${className}`;
     const playerClass = document.createElement('small'); playerClass.textContent = player.class || 'Class not recorded';
+    const className = String(player.class || '').trim().toLowerCase().replace(/\s+/g, '');
+    if (WOW_CLASSES.has(className.toUpperCase())) {
+      const colorClass = `class-${className}`;
+      name.className = colorClass;
+      playerClass.className = colorClass;
+    }
     identity.append(name, playerClass);
     const rank = document.createElement('span'); rank.className = 'attendance-cell'; rank.setAttribute('data-label', 'Rank'); rank.textContent = player.rankName || 'Rank not recorded';
     const raids = document.createElement('strong'); raids.className = 'attendance-cell attendance-raids'; raids.setAttribute('data-label', 'Raids attended'); raids.textContent = `${player.raidCount} / ${attendanceRaidCount}`;

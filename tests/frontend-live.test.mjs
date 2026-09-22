@@ -253,6 +253,8 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   assert.equal(get('#attendance-list').children.length, 2);
   const attendanceRow = get('#attendance-list').children[1];
   assert.equal(attendanceRow.children[0].children[0].textContent, 'Player');
+  assert.equal(attendanceRow.children[0].children[0].className, 'class-priest');
+  assert.equal(attendanceRow.children[0].children[1].className, 'class-priest');
   assert.equal(attendanceRow.children[2].textContent, '1 / 1');
   assert.equal(attendanceRow.children[3].children[0].textContent, '100%');
   assert.notEqual(attendanceRow.children[4].textContent, 'No attendance recorded');
