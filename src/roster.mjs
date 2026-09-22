@@ -92,3 +92,20 @@ export function buildLootRoster(guildRoster, members, drops, raids) {
     loot: player.loot.sort((a, b) => String(b.awarded_at || b.dropped_at).localeCompare(String(a.awarded_at || a.dropped_at))),
   })).sort((a, b) => a.name.localeCompare(b.name));
 }
+
+export function buildAttendanceRoster(guildRoster, members, raids) {
+  const availableRaids = new Map(raids.map(raid => [raid.id, raid]));
+  const trackedRaidIDs = new Set(members.map(member => member.raid_id).filter(raidID => availableRaids.has(raidID)));
+  const trackedRaids = raids.filter(raid => trackedRaidIDs.has(raid.id));
+  const trackedByID = new Map(trackedRaids.map(raid => [raid.id, raid]));
+  const players = buildLootRoster(guildRoster, members, [], trackedRaids).map(player => {
+    const attendedRaids = [...player.raids].map(raidID => trackedByID.get(raidID)).filter(Boolean);
+    const lastAttendanceAt = attendedRaids.map(raid => raid.created_at).filter(Boolean).sort().at(-1) || null;
+    return {
+      ...player,
+      attendanceRate: trackedRaids.length ? Math.round((player.raidCount / trackedRaids.length) * 100) : null,
+      lastAttendanceAt,
+    };
+  });
+  return { players, trackedRaidCount: trackedRaids.length };
+}

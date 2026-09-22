@@ -59,6 +59,7 @@
             <nav class="guild-menu" aria-label="Guild sections">
               <button id="nav-overview" class="guild-menu-link" type="button">Overview</button>
               <button id="open-roster" class="guild-menu-link" type="button">Guild loot</button>
+              <button id="open-attendance" class="guild-menu-link" type="button">Attendance</button>
             </nav>
             <div class="dashboard-actions">
               <button id="manage-members" class="secondary compact-button" type="button" hidden>Manage members</button>
@@ -118,6 +119,28 @@
           <input id="roster-search" type="search" placeholder="Search by character name" autocomplete="off">
           <p id="roster-message" class="message" role="status" aria-live="polite"></p>
           <div id="roster-list" class="roster-list"></div>
+        </div>
+        <div id="guild-attendance" hidden>
+          <p class="eyebrow">ATTENDANCE TRACKER</p>
+          <h2>Guild attendance</h2>
+          <p class="muted">Attendance is calculated only from raid sessions that captured attendance, so raids without roster data do not count against anyone.</p>
+          <div class="roster-controls">
+            <div class="roster-tabs" aria-label="Guild member status">
+              <button id="attendance-current" class="secondary" type="button" aria-pressed="true">Current members <span id="attendance-current-count">0</span></button>
+              <button id="attendance-former" class="secondary" type="button" aria-pressed="false">Former members <span id="attendance-former-count">0</span></button>
+            </div>
+            <details class="roster-rank-filter">
+              <summary id="attendance-rank-summary">Filter Guild Ranks</summary>
+              <div class="roster-rank-popover">
+                <p id="attendance-rank-help" class="roster-rank-help">Turn each rank on or off. Champion and higher are shown by default.</p>
+                <div id="attendance-rank-toggles" class="roster-rank-toggles" role="group" aria-labelledby="attendance-rank-summary" aria-describedby="attendance-rank-help"></div>
+              </div>
+            </details>
+          </div>
+          <label for="attendance-search">Find a player</label>
+          <input id="attendance-search" type="search" placeholder="Search by character name" autocomplete="off">
+          <p id="attendance-message" class="message" role="status" aria-live="polite"></p>
+          <div id="attendance-list" class="attendance-list"></div>
         </div>
         <div id="raid-detail" hidden>
           <div class="raid-detail-toolbar">

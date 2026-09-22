@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Script, createContext } from 'node:vm';
-const appSource = `${readFileSync(new URL('../src/roster.mjs', import.meta.url), 'utf8').replace('export function', 'function')}\n${readFileSync(new URL('../src/export-file.mjs', import.meta.url), 'utf8').replace('export function', 'function')}\n${readFileSync(new URL('../app.js', import.meta.url), 'utf8').replace(/^import .*;$/gm, '')}`;
+const appSource = `${readFileSync(new URL('../src/roster.mjs', import.meta.url), 'utf8').replaceAll('export function', 'function')}\n${readFileSync(new URL('../src/export-file.mjs', import.meta.url), 'utf8').replace('export function', 'function')}\n${readFileSync(new URL('../app.js', import.meta.url), 'utf8').replace(/^import .*;$/gm, '')}`;
 
 class Element {
   constructor() {

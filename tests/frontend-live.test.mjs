@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Script, createContext } from 'node:vm';
-const appSource = `${readFileSync(new URL('../src/roster.mjs', import.meta.url), 'utf8').replace('export function', 'function')}\n${readFileSync(new URL('../src/export-file.mjs', import.meta.url), 'utf8').replace('export function', 'function')}\n${readFileSync(new URL('../app.js', import.meta.url), 'utf8').replace(/^import .*;$/gm, '')}`;
+const appSource = `${readFileSync(new URL('../src/roster.mjs', import.meta.url), 'utf8').replaceAll('export function', 'function')}\n${readFileSync(new URL('../src/export-file.mjs', import.meta.url), 'utf8').replace('export function', 'function')}\n${readFileSync(new URL('../app.js', import.meta.url), 'utf8').replace(/^import .*;$/gm, '')}`;
 
 class Element {
   constructor() {
@@ -44,7 +44,7 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   let deleted = false;
   let purged = false;
   let corrected = false;
-  const raid = { id: 'raid-1', name: 'Thursday September 17th 2026 - Black Temple', revision: 2, closed_at: null };
+  const raid = { id: 'raid-1', name: 'Thursday September 17th 2026 - Black Temple', revision: 2, created_at: '2026-09-17T12:00:00Z', closed_at: null };
   const adminActions = [];
   const attendance = [
     { character_key: 'player', name: 'Player', class: 'PRIEST', present: true },
@@ -112,6 +112,7 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   };
   const context = createContext({
     document, fetch, Response, URL, AbortController, Date, JSON, window: { innerWidth: 1000, innerHeight: 800, confirm: () => true },
+    testRaid: raid,
     sessionStorage: {
       getItem: (key) => storage.get(key) ?? null,
       setItem: (key, value) => storage.set(key, value),
@@ -245,6 +246,22 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(get('#raid-detail').hidden, false);
   assert.equal(get('#guild-roster').hidden, true);
+  await get('#open-attendance').listeners.click();
+  assert.equal(get('#guild-attendance').hidden, false);
+  assert.equal(get('#raid-detail').hidden, true);
+  assert.equal(get('#attendance-message').textContent, '1 tracked raid · 1 of 3 current · 1 of 1 former');
+  assert.equal(get('#attendance-list').children.length, 2);
+  const attendanceRow = get('#attendance-list').children[1];
+  assert.equal(attendanceRow.children[0].children[0].textContent, 'Player');
+  assert.equal(attendanceRow.children[2].textContent, '1 / 1');
+  assert.equal(attendanceRow.children[3].children[0].textContent, '100%');
+  assert.notEqual(attendanceRow.children[4].textContent, 'No attendance recorded');
+  assert.equal(get('#attendance-rank-toggles').children.length, 3);
+  get('#attendance-rank-toggles').children[1].listeners.click();
+  assert.equal(get('#attendance-list').children.length, 3);
+  await new Script("openRaidDetail(testRaid, 'guild-1')").runInContext(context);
+  assert.equal(get('#guild-attendance').hidden, true);
+  assert.equal(get('#raid-detail').hidden, false);
   get('#manage-raid').listeners.click();
   await get('#delete-raid').listeners.click();
   assert.equal(adminActions.at(-1).action, 'delete_raid');
@@ -323,8 +340,9 @@ test('raid archive loads older pages and refreshes the visible range', async () 
 test('guild sections and connection button sit in the full-width top menu', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
-  assert.match(html, /id="guild-nav" class="dashboard-topbar"[\s\S]*dashboard-logo[\s\S]*id="nav-overview"[\s\S]*id="open-roster"[\s\S]*id="create-pairing"[\s\S]*<\/header>/);
+  assert.match(html, /id="guild-nav" class="dashboard-topbar"[\s\S]*dashboard-logo[\s\S]*id="nav-overview"[\s\S]*id="open-roster"[\s\S]*id="open-attendance"[\s\S]*id="create-pairing"[\s\S]*<\/header>/);
   assert.match(html, /id="open-roster"[^>]*>Guild loot<\/button>/);
+  assert.match(html, /id="open-attendance"[^>]*>Attendance<\/button>/);
   assert.doesNotMatch(html, /class="roster-trigger"/);
   assert.match(css, /\.dashboard-topbar\s*\{[^}]*justify-content:\s*space-between/);
 });

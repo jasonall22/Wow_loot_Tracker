@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildLootRoster } from '../src/roster.mjs';
+import { buildAttendanceRoster, buildLootRoster } from '../src/roster.mjs';
 
 test('current guild member receives all earlier attendance and awarded loot', () => {
   const raids = [{ id: 'a', name: 'Tuesday September 1st 2026 - Black Temple' }, { id: 'b', name: 'Hyjal : Wednesday September 2nd 2026' }];
@@ -55,4 +55,28 @@ test('a raider who joins later gains loot recorded before their first guild snap
   const [player] = buildLootRoster(guildRoster, members, drops, raids);
   assert.equal(player.raidCount, 1);
   assert.deepEqual(player.loot.map(drop => drop.item_name), ['Earlier item']);
+});
+
+test('attendance percentages count only raids that captured attendance', () => {
+  const raids = [
+    { id: 'one', name: 'Raid one', created_at: '2026-09-01T00:00:00Z' },
+    { id: 'two', name: 'Raid two', created_at: '2026-09-08T00:00:00Z' },
+    { id: 'missing', name: 'No attendance data', created_at: '2026-09-15T00:00:00Z' },
+  ];
+  const guildRoster = [
+    { character_key: 'always', name: 'Always', is_current: true },
+    { character_key: 'once', name: 'Once', is_current: true },
+  ];
+  const members = [
+    { raid_id: 'one', character_key: 'always', name: 'Always' },
+    { raid_id: 'one', character_key: 'once', name: 'Once' },
+    { raid_id: 'two', character_key: 'always', name: 'Always' },
+    { raid_id: 'two', character_key: 'pug', name: 'Pug' },
+  ];
+  const attendance = buildAttendanceRoster(guildRoster, members, raids);
+  assert.equal(attendance.trackedRaidCount, 2);
+  assert.equal(attendance.players.find(player => player.name === 'Always').attendanceRate, 100);
+  assert.equal(attendance.players.find(player => player.name === 'Once').attendanceRate, 50);
+  assert.equal(attendance.players.find(player => player.name === 'Always').lastAttendanceAt, '2026-09-08T00:00:00Z');
+  assert.ok(!attendance.players.some(player => player.name === 'Pug'));
 });

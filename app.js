@@ -1,4 +1,4 @@
-import { buildLootRoster } from './src/roster.mjs';
+import { buildAttendanceRoster, buildLootRoster } from './src/roster.mjs';
 import { extractRaidExport } from './src/export-file.mjs';
 
 const state = { config: null, session: null };
@@ -9,6 +9,7 @@ const inviteSetup = document.querySelector('#invite-setup');
 const dashboard = document.querySelector('#dashboard');
 const raidDetail = document.querySelector('#raid-detail');
 const guildRoster = document.querySelector('#guild-roster');
+const guildAttendance = document.querySelector('#guild-attendance');
 const guildNav = document.querySelector('#guild-nav');
 const form = document.querySelector('#sign-in-form');
 const message = document.querySelector('#message');
@@ -45,6 +46,11 @@ let rosterLookupName = '';
 let rosterRequest = 0;
 const DEFAULT_ROSTER_RANK_INDEX = 4;
 const rosterVisibleRanks = new Set(Array.from({ length: DEFAULT_ROSTER_RANK_INDEX + 1 }, (_, index) => index));
+const attendanceVisibleRanks = new Set(Array.from({ length: DEFAULT_ROSTER_RANK_INDEX + 1 }, (_, index) => index));
+let attendancePlayers = [];
+let attendanceRaidCount = 0;
+let attendanceGroup = 'current';
+let attendanceRequest = 0;
 let raidMembers = [];
 let editingDrop = null;
 let canManageRaids = false;
@@ -217,6 +223,7 @@ function sessionExpired() {
   dashboard.hidden = true;
   raidDetail.hidden = true;
   guildRoster.hidden = true;
+  guildAttendance.hidden = true;
   guildNav.hidden = true;
   signedOut.hidden = false;
   shell.classList.remove('workspace-view');
@@ -320,6 +327,8 @@ async function openDashboard(entry) {
   returnRaid = null;
   guildRoster.hidden = true;
   rosterRequest += 1;
+  guildAttendance.hidden = true;
+  attendanceRequest += 1;
   canManageRaids = entry.permissions?.manageRaids === true;
   raidArchiveSignature = '';
   archivedRaidSignature = '';
@@ -499,7 +508,7 @@ async function loadGuildPages(guildID, view, maxRows = 20000) {
 }
 
 function setGuildNav(section) {
-  for (const [name, selector] of [['overview', '#nav-overview'], ['roster', '#open-roster']]) {
+  for (const [name, selector] of [['overview', '#nav-overview'], ['roster', '#open-roster'], ['attendance', '#open-attendance']]) {
     const button = document.querySelector(selector);
     if (name === section) button.setAttribute('aria-current', 'page');
     else button.removeAttribute('aria-current');
@@ -582,6 +591,8 @@ function returnToOverview() {
   selectedRosterKey = null;
   rosterLookupName = '';
   guildRoster.hidden = true;
+  guildAttendance.hidden = true;
+  attendanceRequest += 1;
   raidDetail.hidden = true;
   dashboard.hidden = false;
   setGuildNav('overview');
@@ -676,6 +687,8 @@ async function openGuildRoster(winnerName = '') {
   if (!selectedGuildID) return;
   const guildID = selectedGuildID; const request = ++rosterRequest;
   hideItemTooltip();
+  attendanceRequest += 1;
+  guildAttendance.hidden = true;
   returnRaid = winnerName && !raidDetail.hidden ? activeRaid : null;
   activeRaid = null;
   dashboard.hidden = true; raidDetail.hidden = true; guildRoster.hidden = false;
@@ -733,6 +746,149 @@ for (const [selector, group] of [['#roster-current', 'current'], ['#roster-forme
     document.querySelector('#roster-current').setAttribute('aria-pressed', String(group === 'current'));
     document.querySelector('#roster-former').setAttribute('aria-pressed', String(group === 'former'));
     renderGuildRoster();
+  });
+}
+
+function attendanceRankVisible(player) {
+  return attendanceVisibleRanks.has(rosterRankIndex(player));
+}
+
+function attendanceRankLabel(rankIndex) {
+  const current = attendancePlayers.find(player => player.isCurrent && rosterRankIndex(player) === rankIndex);
+  const any = current || attendancePlayers.find(player => rosterRankIndex(player) === rankIndex);
+  return String(any?.rankName || (rankIndex === DEFAULT_ROSTER_RANK_INDEX ? 'Champion' : `Rank ${rankIndex}`)).trim();
+}
+
+function updateAttendanceSummary() {
+  const ranks = new Set(attendancePlayers.map(rosterRankIndex).filter(Number.isFinite));
+  const visibleRankCount = [...ranks].filter(rank => attendanceVisibleRanks.has(rank)).length;
+  const shown = attendancePlayers.filter(attendanceRankVisible);
+  const currentCount = shown.filter(player => player.isCurrent).length;
+  const formerCount = shown.length - currentCount;
+  const totalCurrent = attendancePlayers.filter(player => player.isCurrent).length;
+  const totalFormer = attendancePlayers.length - totalCurrent;
+  document.querySelector('#attendance-current-count').textContent = currentCount;
+  document.querySelector('#attendance-former-count').textContent = formerCount;
+  document.querySelector('#attendance-rank-summary').textContent = `Filter Guild Ranks (${visibleRankCount} selected)`;
+  document.querySelector('#attendance-rank-help').textContent = `${visibleRankCount} of ${ranks.size} ranks shown. ${currentCount} of ${totalCurrent} current members match.`;
+  const notice = document.querySelector('#attendance-message');
+  notice.textContent = `${attendanceRaidCount} tracked ${attendanceRaidCount === 1 ? 'raid' : 'raids'} · ${currentCount} of ${totalCurrent} current · ${formerCount} of ${totalFormer} former`;
+  notice.className = 'message';
+}
+
+function populateAttendanceRankToggles() {
+  const toggles = document.querySelector('#attendance-rank-toggles');
+  const ranks = new Set(attendancePlayers.map(rosterRankIndex).filter(Number.isFinite));
+  toggles.replaceChildren();
+  for (const rankIndex of [...ranks].sort((a, b) => a - b)) {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'secondary roster-rank-toggle';
+    button.setAttribute('aria-pressed', String(attendanceVisibleRanks.has(rankIndex)));
+    const label = document.createElement('span'); label.textContent = attendanceRankLabel(rankIndex);
+    const count = document.createElement('small'); count.textContent = attendancePlayers.filter(player => player.isCurrent && rosterRankIndex(player) === rankIndex).length;
+    button.append(label, count);
+    button.addEventListener('click', () => {
+      if (attendanceVisibleRanks.has(rankIndex)) attendanceVisibleRanks.delete(rankIndex);
+      else attendanceVisibleRanks.add(rankIndex);
+      button.setAttribute('aria-pressed', String(attendanceVisibleRanks.has(rankIndex)));
+      document.querySelector('#attendance-search').value = '';
+      updateAttendanceSummary();
+      renderGuildAttendance();
+    });
+    toggles.append(button);
+  }
+}
+
+function renderGuildAttendance() {
+  const list = document.querySelector('#attendance-list');
+  const search = document.querySelector('#attendance-search').value.trim().toLocaleLowerCase();
+  list.replaceChildren();
+  const visible = attendancePlayers
+    .filter(player => player.isCurrent === (attendanceGroup === 'current'))
+    .filter(player => attendanceRankVisible(player) && player.name.toLocaleLowerCase().includes(search))
+    .sort((a, b) => (b.attendanceRate ?? -1) - (a.attendanceRate ?? -1) || a.name.localeCompare(b.name));
+  if (!visible.length) {
+    const empty = document.createElement('p'); empty.className = 'muted';
+    if (!attendancePlayers.length) empty.textContent = 'No guild roster has synced yet.';
+    else if (search) empty.textContent = 'No member matches that search and rank selection.';
+    else empty.textContent = attendanceGroup === 'current' ? 'No current guild members match the selected ranks.' : 'No former guild members match the selected ranks.';
+    list.append(empty); return;
+  }
+  const header = document.createElement('div'); header.className = 'attendance-header';
+  for (const label of ['Player', 'Rank', 'Raids attended', 'Attendance', 'Last attended']) {
+    const column = document.createElement('span'); column.textContent = label; header.append(column);
+  }
+  list.append(header);
+  for (const player of visible) {
+    const row = document.createElement('div'); row.className = 'attendance-row';
+    const identity = document.createElement('span'); identity.className = 'attendance-player roster-identity'; identity.setAttribute('data-label', 'Player');
+    const name = document.createElement('strong'); name.textContent = player.name;
+    const className = String(player.class || '').trim().toLowerCase().replace(/\s+/g, '');
+    if (WOW_CLASSES.has(className.toUpperCase())) name.className = `class-${className}`;
+    const playerClass = document.createElement('small'); playerClass.textContent = player.class || 'Class not recorded';
+    identity.append(name, playerClass);
+    const rank = document.createElement('span'); rank.className = 'attendance-cell'; rank.setAttribute('data-label', 'Rank'); rank.textContent = player.rankName || 'Rank not recorded';
+    const raids = document.createElement('strong'); raids.className = 'attendance-cell attendance-raids'; raids.setAttribute('data-label', 'Raids attended'); raids.textContent = `${player.raidCount} / ${attendanceRaidCount}`;
+    const rate = document.createElement('span'); rate.className = 'attendance-rate'; rate.setAttribute('data-label', 'Attendance');
+    const percentage = document.createElement('strong'); percentage.textContent = player.attendanceRate === null ? '—' : `${player.attendanceRate}%`;
+    const meter = document.createElement('span'); meter.className = 'attendance-meter';
+    const fill = document.createElement('span'); fill.style.width = `${player.attendanceRate ?? 0}%`; meter.append(fill); rate.append(percentage, meter);
+    const last = document.createElement('span'); last.className = 'attendance-cell'; last.setAttribute('data-label', 'Last attended');
+    last.textContent = player.lastAttendanceAt && Number.isFinite(Date.parse(player.lastAttendanceAt)) ? new Date(player.lastAttendanceAt).toLocaleDateString() : 'No attendance recorded';
+    row.append(identity, rank, raids, rate, last); list.append(row);
+  }
+}
+
+async function loadGuildAttendance(guildID, quiet = false) {
+  const request = ++attendanceRequest;
+  const notice = document.querySelector('#attendance-message');
+  if (!quiet) { notice.textContent = 'Loading guild attendance…'; notice.className = 'message'; }
+  try {
+    const [raids, guildMembers, members] = await Promise.all([
+      loadGuildPages(guildID, 'raids'), loadGuildPages(guildID, 'guild_roster'), loadGuildPages(guildID, 'roster_members'),
+    ]);
+    if (guildAttendance.hidden || guildID !== selectedGuildID || request !== attendanceRequest) return;
+    const attendance = buildAttendanceRoster(guildMembers, members, raids);
+    attendancePlayers = attendance.players;
+    attendanceRaidCount = attendance.trackedRaidCount;
+    populateAttendanceRankToggles();
+    document.querySelector('#attendance-current').setAttribute('aria-pressed', String(attendanceGroup === 'current'));
+    document.querySelector('#attendance-former').setAttribute('aria-pressed', String(attendanceGroup === 'former'));
+    updateAttendanceSummary();
+    renderGuildAttendance();
+  } catch (error) {
+    if (request === attendanceRequest && !guildAttendance.hidden) {
+      notice.textContent = quiet ? `Attendance refresh paused: ${error.message}` : error.message;
+      notice.className = 'message error';
+    }
+  }
+}
+
+async function openGuildAttendance() {
+  if (!selectedGuildID) return;
+  rosterRequest += 1;
+  hideItemTooltip();
+  activeRaid = null;
+  returnRaid = null;
+  dashboard.hidden = true;
+  raidDetail.hidden = true;
+  guildRoster.hidden = true;
+  guildAttendance.hidden = false;
+  attendanceGroup = 'current';
+  document.querySelector('#attendance-search').value = '';
+  document.querySelector('#attendance-list').replaceChildren();
+  setGuildNav('attendance');
+  await loadGuildAttendance(selectedGuildID);
+}
+
+document.querySelector('#open-attendance').addEventListener('click', openGuildAttendance);
+document.querySelector('#attendance-search').addEventListener('input', renderGuildAttendance);
+for (const [selector, group] of [['#attendance-current', 'current'], ['#attendance-former', 'former']]) {
+  document.querySelector(selector).addEventListener('click', () => {
+    attendanceGroup = group;
+    document.querySelector('#attendance-search').value = '';
+    document.querySelector('#attendance-current').setAttribute('aria-pressed', String(group === 'current'));
+    document.querySelector('#attendance-former').setAttribute('aria-pressed', String(group === 'former'));
+    renderGuildAttendance();
   });
 }
 
@@ -874,10 +1030,14 @@ document.querySelector('#copy-pairing').addEventListener('click', async () => {
 
 async function openRaidDetail(raid, guildID) {
   if (activeRaid?.raid.id !== raid.id || activeRaid.guildID !== guildID) collapsedLootBosses.clear();
+  rosterRequest += 1;
+  attendanceRequest += 1;
   activeRaid = { raid, guildID };
   raidMembers = [];
   raidDetailSignature = '';
   dashboard.hidden = true;
+  guildRoster.hidden = true;
+  guildAttendance.hidden = true;
   raidDetail.hidden = false;
   setGuildNav('');
   document.querySelector('#manage-raid').hidden = !canManageRaids;
@@ -962,6 +1122,7 @@ async function refreshVisible() {
   refreshingView = true;
   try {
     if (!raidDetail.hidden && activeRaid) await loadRaidDetail(activeRaid.raid, activeRaid.guildID, true);
+    else if (!guildAttendance.hidden && selectedGuildID) await loadGuildAttendance(selectedGuildID, true);
     else if (!dashboard.hidden && selectedGuildID) await Promise.all([
       loadRaidArchive(selectedGuildID, true),
       canManageRaids ? loadArchivedRaids(selectedGuildID, true) : Promise.resolve(),
@@ -1354,6 +1515,10 @@ document.querySelector('#back-to-guilds').addEventListener('click', () => {
   if (pairingDialog.open) pairingDialog.close();
   if (membersDialog.open) membersDialog.close();
   dashboard.hidden = true;
+  guildRoster.hidden = true;
+  guildAttendance.hidden = true;
+  rosterRequest += 1;
+  attendanceRequest += 1;
   guildNav.hidden = true;
   signedIn.hidden = false;
   shell.classList.remove('workspace-view');
@@ -1394,6 +1559,10 @@ document.querySelector('#sign-out').addEventListener('click', () => {
   sessionStorage.removeItem('apoc_invite_password_saved');
   signedIn.hidden = true;
   inviteSetup.hidden = true;
+  dashboard.hidden = true;
+  raidDetail.hidden = true;
+  guildRoster.hidden = true;
+  guildAttendance.hidden = true;
   signedOut.hidden = false;
   guildNav.hidden = true;
   shell.classList.remove('workspace-view');
