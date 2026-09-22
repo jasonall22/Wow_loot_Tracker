@@ -66,13 +66,13 @@ test('approved character name is fetched only after the guild-scoped admin RPC',
   assert.equal(response.status, 200);
   assert.deepEqual((await response.json()).members[0], {
     user_id: USER, role: 'admin', status: 'active', can_edit: false,
-    can_upload: false, character_name: 'Morpheo',
+    can_upload: false, character_name: 'Morpheo', email: 'Morpheo',
   });
   assert.equal(calls[1].url, `https://exampleproject.supabase.co/rest/v1/apoc_join_requests?select=user_id,character_name&guild_id=eq.${GUILD}&status=eq.approved&limit=100`);
   assert.equal(calls[1].init.headers.Authorization, 'Bearer sb_secret_test');
 });
 
-test('legacy invited members show no character instead of exposing their email', async () => {
+test('legacy invited members get a non-email compatibility label', async () => {
   const calls = [];
   const handler = createMembersHandler({
     backendFactory: () => ({ authenticate: async () => principal,
@@ -88,7 +88,8 @@ test('legacy invited members show no character instead of exposing their email',
   const response = await handler(request());
   const member = (await response.json()).members[0];
   assert.equal(member.character_name, null);
-  assert.equal(Object.hasOwn(member, 'email'), false);
+  assert.equal(member.email, 'Character not set');
+  assert.doesNotMatch(member.email, /@/);
 });
 
 test('invalid fields and self-promotion claims never reach RPC', async () => {

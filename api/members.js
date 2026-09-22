@@ -79,9 +79,16 @@ export function createMembersHandler({
         const memberIDs = new Set(result.members.map(member => member.user_id));
         if (nameRows.some(row => !memberIDs.has(row.user_id))) throw unavailable();
         const names = new Map(nameRows.map(row => [row.user_id, row.character_name]));
-        return jsonResponse({ members: result.members.map(member => ({
-          ...member, character_name: names.get(member.user_id) ?? null,
-        })) });
+        return jsonResponse({ members: result.members.map(member => {
+          const characterName = names.get(member.user_id) ?? null;
+          return {
+            ...member,
+            character_name: characterName,
+            // Compatibility label for tabs opened before character_name replaced
+            // the email-based selector. This never contains an email address.
+            email: characterName ?? 'Character not set',
+          };
+        }) });
       }
       return jsonResponse({ status: 'ok' });
     } catch (error) { return errorResponse(error); }

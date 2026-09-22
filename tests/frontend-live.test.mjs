@@ -359,7 +359,9 @@ test('sign-in page collects guild, character, email, and password for approval',
 });
 
 test('member management identifies accounts by character name, not email', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const script = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+  assert.match(html, /src="\/app\.js\?v=[^"]+"/);
   assert.match(script, /option\.textContent = member\.character_name \|\| 'Character not set'/);
   assert.doesNotMatch(script, /option\.textContent = member\.email/);
 });
