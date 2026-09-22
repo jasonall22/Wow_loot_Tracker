@@ -621,7 +621,8 @@ function renderGuildRoster() {
     meta.textContent = identityParts.join(' · ');
     identity.append(name, meta);
     const icons = document.createElement('span'); icons.className = 'roster-icons';
-    for (const drop of player.loot.slice(0, 4)) {
+    const previewLoot = player.loot.filter(drop => String(drop.award_type || '').toUpperCase() !== 'OS').slice(0, 4);
+    for (const drop of previewLoot) {
       const id = Number(drop.item_id);
       if (!Number.isInteger(id) || id < 1 || id > 10000000) continue;
       const icon = document.createElement('img'); icon.alt = ''; icon.width = 34; icon.height = 34;

@@ -81,7 +81,10 @@ test('an open raid detail refreshes a removed drop without a user click', async 
       { character_key: 'former', name: 'Former', class: 'MAGE', rank_name: 'Champion', rank_index: 4, is_current: false },
     ] });
     if (view === 'roster_members') return Response.json({ roster_members: [{ raid_id: 'raid-1', character_key: 'player', name: 'Player', class: 'PRIEST' }] });
-    if (view === 'roster_drops') return Response.json({ roster_drops: [{ raid_id: 'raid-1', id: 'drop-1', item_id: 32336, item_name: 'Kept', winner: 'Player', award_type: 'MS', awarded_at: '2026-09-17T13:00:00Z' }] });
+    if (view === 'roster_drops') return Response.json({ roster_drops: [
+      { raid_id: 'raid-1', id: 'drop-1', item_id: 32336, item_name: 'Kept', winner: 'Player', award_type: 'MS', awarded_at: '2026-09-17T13:00:00Z' },
+      { raid_id: 'raid-1', id: 'drop-2', item_id: 32337, item_name: 'Off-spec item', winner: 'Player', award_type: 'OS', awarded_at: '2026-09-16T13:00:00Z' },
+    ] });
     if (view === 'visits') return Response.json({ visits: [{ character_key: 'raider-1', joined_at: '2026-09-17T13:00:00Z' }] });
     if (url.pathname === '/api/item') {
       assert.equal(url.searchParams.get('format'), '2');
@@ -207,7 +210,10 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   assert.equal(get('#roster-search').value, 'Player');
   assert.equal(get('#roster-list').children.length, 1);
   assert.equal(get('#roster-list').children[0].open, true);
-  const rosterAward = get('#roster-list').children[0].children[1].children[1];
+  const rosterCard = get('#roster-list').children[0];
+  assert.equal(rosterCard.children[0].children[1].children.length, 1);
+  assert.equal(rosterCard.children[0].children[1].children[0].src, '/api/item?id=32336&icon=1');
+  const rosterAward = rosterCard.children[1].children[1];
   assert.equal(rosterAward.children[0].children.at(-1).textContent, 'Kept');
   assert.equal(rosterAward.children[1].textContent, 'Black Temple');
   assert.equal(rosterAward.children[2].textContent, 'MS');
