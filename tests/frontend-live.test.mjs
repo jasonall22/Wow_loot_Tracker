@@ -358,6 +358,12 @@ test('sign-in page collects guild, character, email, and password for approval',
   assert.match(html, /id="join-requests-dialog"[\s\S]*Approve a verified guild member/);
 });
 
+test('member management identifies accounts by character name, not email', () => {
+  const script = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+  assert.match(script, /option\.textContent = member\.character_name \|\| 'Character not set'/);
+  assert.doesNotMatch(script, /option\.textContent = member\.email/);
+});
+
 test('top-menu logout clears the browser session and revokes only the current Supabase session', async () => {
   const elements = new Map();
   const get = (selector) => elements.get(selector) ?? elements.set(selector, new Element()).get(selector);

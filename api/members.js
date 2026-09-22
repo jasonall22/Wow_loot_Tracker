@@ -63,24 +63,25 @@ export function createMembersHandler({
       if (request.method === 'GET') {
         if (!Array.isArray(result.members) || result.members.length > 100 ||
             result.members.some(member => !validID(member?.user_id))) throw unavailable();
-        const members = [];
-        for (let i = 0; i < result.members.length; i += 8) {
-          const batch = await Promise.all(result.members.slice(i, i + 8).map(async member => {
-            let userResponse;
-            try {
-              userResponse = await fetchImpl(`${config.origin}/auth/v1/admin/users/${member.user_id}`, {
-                method: 'GET', headers: { apikey: config.secretKey, Authorization: `Bearer ${config.secretKey}` },
-                cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(8000),
-              });
-            } catch { throw unavailable(); }
-            if (!userResponse.ok) throw unavailable();
-            const user = await userResponse.json().catch(() => { throw unavailable(); });
-            if (user?.id !== member.user_id || typeof user.email !== 'string') throw unavailable();
-            return { ...member, email: user.email };
-          }));
-          members.push(...batch);
-        }
-        return jsonResponse({ members });
+        if (result.members.length === 0) return jsonResponse({ members: [] });
+        let namesResponse;
+        try {
+          namesResponse = await fetchImpl(`${config.origin}/rest/v1/apoc_join_requests?select=user_id,character_name&guild_id=eq.${encodeURIComponent(input.guild)}&status=eq.approved&limit=100`, {
+            method: 'GET', headers: { apikey: config.secretKey, Authorization: `Bearer ${config.secretKey}` },
+            cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(8000),
+          });
+        } catch { throw unavailable(); }
+        if (!namesResponse.ok) throw unavailable();
+        const nameRows = await namesResponse.json().catch(() => { throw unavailable(); });
+        if (!Array.isArray(nameRows) || nameRows.length > 100 || nameRows.some(row =>
+          !validID(row?.user_id) || typeof row.character_name !== 'string' ||
+          row.character_name.length < 2 || row.character_name.length > 24)) throw unavailable();
+        const memberIDs = new Set(result.members.map(member => member.user_id));
+        if (nameRows.some(row => !memberIDs.has(row.user_id))) throw unavailable();
+        const names = new Map(nameRows.map(row => [row.user_id, row.character_name]));
+        return jsonResponse({ members: result.members.map(member => ({
+          ...member, character_name: names.get(member.user_id) ?? null,
+        })) });
       }
       return jsonResponse({ status: 'ok' });
     } catch (error) { return errorResponse(error); }

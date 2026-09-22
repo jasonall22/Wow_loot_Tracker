@@ -49,7 +49,7 @@ test('valid list and update use server-only key and verified actor', async () =>
   });
 });
 
-test('member email is fetched only after the guild-scoped admin RPC', async () => {
+test('approved character name is fetched only after the guild-scoped admin RPC', async () => {
   const calls = [];
   const handler = createMembersHandler({
     backendFactory: () => ({ authenticate: async () => principal,
@@ -59,14 +59,36 @@ test('member email is fetched only after the guild-scoped admin RPC', async () =
       calls.push({ url, init });
       return calls.length === 1
         ? Response.json({ status: 'ok', members: [{ user_id: USER, role: 'admin', status: 'active', can_edit: false, can_upload: false }] })
-        : Response.json({ id: USER, email: 'guild@example.test' });
+        : Response.json([{ user_id: USER, character_name: 'Morpheo' }]);
     },
   });
   const response = await handler(request());
   assert.equal(response.status, 200);
-  assert.equal((await response.json()).members[0].email, 'guild@example.test');
-  assert.equal(calls[1].url, `https://exampleproject.supabase.co/auth/v1/admin/users/${USER}`);
+  assert.deepEqual((await response.json()).members[0], {
+    user_id: USER, role: 'admin', status: 'active', can_edit: false,
+    can_upload: false, character_name: 'Morpheo',
+  });
+  assert.equal(calls[1].url, `https://exampleproject.supabase.co/rest/v1/apoc_join_requests?select=user_id,character_name&guild_id=eq.${GUILD}&status=eq.approved&limit=100`);
   assert.equal(calls[1].init.headers.Authorization, 'Bearer sb_secret_test');
+});
+
+test('legacy invited members show no character instead of exposing their email', async () => {
+  const calls = [];
+  const handler = createMembersHandler({
+    backendFactory: () => ({ authenticate: async () => principal,
+      membership: async () => ({ ...membership, role: 'admin' }) }),
+    serverConfig: () => ({ origin: 'https://exampleproject.supabase.co', secretKey: 'sb_secret_test' }),
+    fetchImpl: async (url, init) => {
+      calls.push({ url, init });
+      return calls.length === 1
+        ? Response.json({ status: 'ok', members: [{ user_id: USER, role: 'member', status: 'active', can_edit: false, can_upload: false }] })
+        : Response.json([]);
+    },
+  });
+  const response = await handler(request());
+  const member = (await response.json()).members[0];
+  assert.equal(member.character_name, null);
+  assert.equal(Object.hasOwn(member, 'email'), false);
 });
 
 test('invalid fields and self-promotion claims never reach RPC', async () => {

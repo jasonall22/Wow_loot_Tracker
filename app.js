@@ -1461,7 +1461,7 @@ async function loadAdminMembers() {
   for (const member of memberRows) {
     const option = document.createElement('option');
     option.value = member.user_id;
-    option.textContent = member.email || member.user_id;
+    option.textContent = member.character_name || 'Character not set';
     memberSelect.append(option);
   }
   if (memberRows.some(member => member.user_id === previous)) memberSelect.value = previous;
