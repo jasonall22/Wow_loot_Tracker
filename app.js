@@ -44,7 +44,7 @@ let rosterGroup = 'current';
 let rosterLookupName = '';
 let rosterRequest = 0;
 const DEFAULT_ROSTER_RANK_INDEX = 4;
-let rosterRankLimit = DEFAULT_ROSTER_RANK_INDEX;
+const rosterVisibleRanks = new Set(Array.from({ length: DEFAULT_ROSTER_RANK_INDEX + 1 }, (_, index) => index));
 let raidMembers = [];
 let editingDrop = null;
 let canManageRaids = false;
@@ -523,7 +523,7 @@ function rosterRankIndex(player) {
 }
 
 function rosterRankVisible(player) {
-  return rosterRankIndex(player) <= rosterRankLimit;
+  return rosterVisibleRanks.has(rosterRankIndex(player));
 }
 
 function rosterRankLabel(rankIndex) {
@@ -533,6 +533,8 @@ function rosterRankLabel(rankIndex) {
 }
 
 function updateRosterSummary() {
+  const ranks = new Set(rosterPlayers.map(rosterRankIndex).filter(Number.isFinite));
+  const visibleRankCount = [...ranks].filter(rank => rosterVisibleRanks.has(rank)).length;
   const shown = rosterPlayers.filter(rosterRankVisible);
   const currentCount = shown.filter(player => player.isCurrent).length;
   const formerCount = shown.length - currentCount;
@@ -540,25 +542,35 @@ function updateRosterSummary() {
   const totalFormer = rosterPlayers.length - totalCurrent;
   document.querySelector('#roster-current-count').textContent = currentCount;
   document.querySelector('#roster-former-count').textContent = formerCount;
-  document.querySelector('#roster-rank-help').textContent = `Showing ${rosterRankLabel(rosterRankLimit)} and higher. ${currentCount} of ${totalCurrent} current members match.`;
+  document.querySelector('#roster-rank-help').textContent = `${visibleRankCount} of ${ranks.size} ranks shown. ${currentCount} of ${totalCurrent} current members match.`;
   const notice = document.querySelector('#roster-message');
   notice.textContent = `${currentCount} of ${totalCurrent} current · ${formerCount} of ${totalFormer} former · ${shown.reduce((sum, player) => sum + player.loot.length, 0)} awards shown`;
   notice.className = 'message';
 }
 
-function populateRosterRankFilter() {
-  const select = document.querySelector('#roster-rank-filter');
+function populateRosterRankToggles() {
+  const toggles = document.querySelector('#roster-rank-toggles');
   const ranks = new Set(rosterPlayers.map(rosterRankIndex).filter(Number.isFinite));
-  ranks.add(DEFAULT_ROSTER_RANK_INDEX);
   const sortedRanks = [...ranks].sort((a, b) => a - b);
-  select.replaceChildren();
+  toggles.replaceChildren();
   for (const rankIndex of sortedRanks) {
-    const option = document.createElement('option');
-    option.value = String(rankIndex);
-    option.textContent = `${rosterRankLabel(rankIndex)} and higher`;
-    select.append(option);
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'secondary roster-rank-toggle';
+    button.setAttribute('aria-pressed', String(rosterVisibleRanks.has(rankIndex)));
+    const label = document.createElement('span'); label.textContent = rosterRankLabel(rankIndex);
+    const count = document.createElement('small'); count.textContent = rosterPlayers.filter(player => player.isCurrent && rosterRankIndex(player) === rankIndex).length;
+    button.append(label, count);
+    button.addEventListener('click', () => {
+      if (rosterVisibleRanks.has(rankIndex)) rosterVisibleRanks.delete(rankIndex);
+      else rosterVisibleRanks.add(rankIndex);
+      button.setAttribute('aria-pressed', String(rosterVisibleRanks.has(rankIndex)));
+      selectedRosterKey = null;
+      rosterLookupName = '';
+      document.querySelector('#roster-search').value = '';
+      updateRosterSummary();
+      renderGuildRoster();
+    });
+    toggles.append(button);
   }
-  select.value = String(rosterRankLimit);
 }
 
 function returnToOverview() {
@@ -688,7 +700,7 @@ async function openGuildRoster(winnerName = '') {
       rosterGroup = matchedPlayer.isCurrent ? 'current' : 'former';
       rosterLookupName = '';
     }
-    populateRosterRankFilter();
+    populateRosterRankToggles();
     document.querySelector('#roster-current').setAttribute('aria-pressed', String(rosterGroup === 'current'));
     document.querySelector('#roster-former').setAttribute('aria-pressed', String(rosterGroup === 'former'));
     updateRosterSummary();
@@ -710,16 +722,6 @@ document.querySelector('#roster-back-to-raid').addEventListener('click', () => {
   openRaidDetail(target.raid, target.guildID);
 });
 document.querySelector('#roster-search').addEventListener('input', () => { selectedRosterKey = null; rosterLookupName = ''; renderGuildRoster(); });
-document.querySelector('#roster-rank-filter').addEventListener('change', (event) => {
-  const rank = Number(event.target.value);
-  if (!Number.isInteger(rank) || rank < 0) return;
-  rosterRankLimit = rank;
-  selectedRosterKey = null;
-  rosterLookupName = '';
-  document.querySelector('#roster-search').value = '';
-  updateRosterSummary();
-  renderGuildRoster();
-});
 for (const [selector, group] of [['#roster-current', 'current'], ['#roster-former', 'former']]) {
   document.querySelector(selector).addEventListener('click', () => {
     rosterGroup = group;

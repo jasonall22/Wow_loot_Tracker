@@ -29,9 +29,14 @@ button { width: 100%; border: 0; border-radius: 10px; background: #78d7bb; color
 .roster-tabs button { width: auto; margin: 0; padding: 9px 13px; }
 .roster-tabs button[aria-pressed="true"] { border-color: var(--wow-gold); background: #29303b; color: var(--wow-gold-bright); }
 .roster-tabs span { margin-left: 6px; color: #9daabd; }
-.roster-rank-filter { min-width: min(280px, 100%); margin: 0; }
-.roster-rank-filter select { width: 100%; margin-top: 8px; border: 1px solid #4c4b49; border-radius: 10px; background: #0e1521; color: var(--wow-ivory); padding: 10px 38px 10px 12px; font: inherit; }
-.roster-rank-filter select:focus { border-color: var(--wow-gold); outline: none; box-shadow: 0 0 0 3px rgba(223, 173, 85, .15); }
+.roster-rank-filter { min-width: min(420px, 100%); margin: 0; }
+.roster-rank-filter-label { display: block; color: #c7d1df; font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+.roster-rank-toggles { display: flex; flex-wrap: wrap; gap: 7px; }
+.roster-rank-toggle { display: inline-flex; align-items: center; gap: 7px; width: auto; min-height: 38px; margin: 0; padding: 8px 11px; color: #8390a3; border-color: #384456; font-size: 12px; }
+.roster-rank-toggle small { min-width: 20px; padding: 2px 5px; border-radius: 999px; background: #0d1420; color: #9daabd; font-size: 10px; text-align: center; }
+.roster-rank-toggle[aria-pressed="true"] { border-color: var(--wow-gold); background: #29303b; color: var(--wow-gold-bright); }
+.roster-rank-toggle[aria-pressed="true"]::before { content: '✓'; color: #8df0bd; }
+.roster-rank-toggle:focus-visible { outline: 2px solid var(--wow-gold-bright); outline-offset: 2px; }
 .roster-rank-help { color: var(--wow-muted); font-size: 12px; margin: 0 0 18px; }
 .roster-player { border: 1px solid #394152; border-radius: 12px; background: #151e2c; overflow: hidden; }
 .roster-player-summary { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(0, 1fr) auto; align-items: center; gap: 18px; padding: 16px 20px; cursor: pointer; }
