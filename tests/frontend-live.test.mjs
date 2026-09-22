@@ -340,10 +340,10 @@ test('raid archive loads older pages and refreshes the visible range', async () 
   assert.equal(get('#raid-count').textContent, '54');
 });
 
-test('guild sections, connection, and logout sit in the full-width top menu', () => {
+test('guild sections, profile, connection, and logout sit in the full-width top menu', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
-  assert.match(html, /id="guild-nav" class="dashboard-topbar"[\s\S]*dashboard-logo[\s\S]*id="nav-overview"[\s\S]*id="open-roster"[\s\S]*id="open-attendance"[\s\S]*id="join-requests"[\s\S]*id="create-pairing"[\s\S]*id="nav-sign-out"[^>]*>Log out<\/button>[\s\S]*<\/header>/);
+  assert.match(html, /id="guild-nav" class="dashboard-topbar"[\s\S]*dashboard-logo[\s\S]*id="nav-overview"[\s\S]*id="open-roster"[\s\S]*id="open-attendance"[\s\S]*id="open-profile"[^>]*>My profile<\/button>[\s\S]*id="join-requests"[\s\S]*id="create-pairing"[\s\S]*id="nav-sign-out"[^>]*>Log out<\/button>[\s\S]*<\/header>/);
   assert.match(html, /id="open-roster"[^>]*>Guild loot<\/button>/);
   assert.match(html, /id="open-attendance"[^>]*>Attendance<\/button>/);
   assert.doesNotMatch(html, /class="roster-trigger"/);
@@ -364,6 +364,16 @@ test('member management identifies accounts by character name, not email', () =>
   assert.match(html, /src="\/app\.js\?v=[^"]+"/);
   assert.match(script, /option\.textContent = member\.character_name \|\| 'Character not set'/);
   assert.doesNotMatch(script, /option\.textContent = member\.email/);
+});
+
+test('every signed-in member can edit only their own character-name profile', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const script = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+  assert.match(html, /id="profile-dialog"[\s\S]*id="profile-character"[\s\S]*id="save-profile"[^>]*>Save character name<\/button>/);
+  assert.match(html, /This does not change your role or permissions/);
+  assert.match(script, /portalFetch\(`\/api\/profile\?guild=/);
+  assert.match(script, /body: JSON\.stringify\(\{ guild: selectedGuildID, characterName: profileCharacter\.value\.trim\(\) \}\)/);
+  assert.match(html, /src="\/app\.js\?v=20260922\.7"/);
 });
 
 test('top-menu logout clears the browser session and revokes only the current Supabase session', async () => {

@@ -4,6 +4,14 @@ import { bearerToken, createSupabaseBackend, loadConfig, loadServerConfig } from
 
 const ROLES = new Set(['admin', 'officer', 'member']);
 const STATUSES = new Set(['active', 'suspended', 'revoked']);
+const CHARACTER = /^\p{L}[\p{L}'-]{1,23}$/u;
+
+function authCharacterName(user, guild) {
+  const scoped = user?.user_metadata?.guild_character_names?.[guild];
+  if (typeof scoped === 'string' && CHARACTER.test(scoped)) return scoped;
+  const legacy = user?.user_metadata?.character_name;
+  return typeof legacy === 'string' && CHARACTER.test(legacy) ? legacy : null;
+}
 
 export function parseMemberUpdate(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body) ||
@@ -78,17 +86,35 @@ export function createMembersHandler({
           row.character_name.length < 2 || row.character_name.length > 24)) throw unavailable();
         const memberIDs = new Set(result.members.map(member => member.user_id));
         if (nameRows.some(row => !memberIDs.has(row.user_id))) throw unavailable();
-        const names = new Map(nameRows.map(row => [row.user_id, row.character_name]));
-        return jsonResponse({ members: result.members.map(member => {
-          const characterName = names.get(member.user_id) ?? null;
-          return {
-            ...member,
-            character_name: characterName,
-            // Compatibility label for tabs opened before character_name replaced
-            // the email-based selector. This never contains an email address.
-            email: characterName ?? 'Character not set',
-          };
-        }) });
+        const fallbackNames = new Map(nameRows.map(row => [row.user_id, row.character_name]));
+        const members = [];
+        for (let i = 0; i < result.members.length; i += 8) {
+          const batch = await Promise.all(result.members.slice(i, i + 8).map(async member => {
+            let characterName = null;
+            try {
+              const userResponse = await fetchImpl(`${config.origin}/auth/v1/admin/users/${member.user_id}`, {
+                method: 'GET', headers: { apikey: config.secretKey, Authorization: `Bearer ${config.secretKey}` },
+                cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(8000),
+              });
+              if (userResponse.ok) {
+                const user = await userResponse.json().catch(() => null);
+                if (user?.id === member.user_id) characterName = authCharacterName(user, input.guild);
+              }
+            } catch {
+              // Approved request names remain a safe fallback during Auth outages.
+            }
+            characterName ??= fallbackNames.get(member.user_id) ?? null;
+            return {
+              ...member,
+              character_name: characterName,
+              // Compatibility label for tabs opened before character_name replaced
+              // the email-based selector. This never contains an email address.
+              email: characterName ?? 'Character not set',
+            };
+          }));
+          members.push(...batch);
+        }
+        return jsonResponse({ members });
       }
       return jsonResponse({ status: 'ok' });
     } catch (error) { return errorResponse(error); }

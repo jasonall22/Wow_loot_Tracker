@@ -93,6 +93,7 @@
               <button id="open-attendance" class="guild-menu-link" type="button">Attendance</button>
             </nav>
             <div class="dashboard-actions">
+              <button id="open-profile" class="secondary compact-button" type="button">My profile</button>
               <button id="join-requests" class="secondary compact-button" type="button" hidden>Account requests</button>
               <button id="manage-members" class="secondary compact-button" type="button" hidden>Manage members</button>
               <button id="import-raid" class="secondary compact-button" type="button" hidden>Import raid</button>
@@ -212,6 +213,18 @@
           <p id="import-message" class="message" role="status" aria-live="polite"></p>
           <button id="submit-import" type="button" disabled>Import this raid</button>
         </dialog>
+        <dialog id="profile-dialog" class="pairing-dialog edit-dialog" aria-labelledby="profile-dialog-title">
+          <button id="close-profile-dialog" class="dialog-close" type="button" aria-label="Close profile">×</button>
+          <p class="eyebrow">MEMBER PROFILE</p>
+          <h2 id="profile-dialog-title">My profile</h2>
+          <p class="muted">Change the character name shown for your account in this guild. This does not change your role or permissions.</p>
+          <form id="profile-form">
+            <label for="profile-character">Character name</label>
+            <input id="profile-character" type="text" autocomplete="off" minlength="2" maxlength="24" required>
+            <p id="profile-message" class="message" role="status" aria-live="polite"></p>
+            <button id="save-profile" type="submit">Save character name</button>
+          </form>
+        </dialog>
         <dialog id="members-dialog" class="pairing-dialog edit-dialog" aria-labelledby="members-dialog-title">
           <button id="close-members-dialog" class="dialog-close" type="button" aria-label="Close member management">×</button>
           <p class="eyebrow">GUILD ADMINISTRATION</p>
@@ -278,6 +291,6 @@
         <div id="item-tooltip" class="item-tooltip" role="tooltip" hidden></div>
       </section>
     </main>
-    <script type="module" src="/app.js?v=20260922.6"></script>
+    <script type="module" src="/app.js?v=20260922.7"></script>
   </body>
 </html>

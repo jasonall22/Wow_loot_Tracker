@@ -49,7 +49,7 @@ test('valid list and update use server-only key and verified actor', async () =>
   });
 });
 
-test('approved character name is fetched only after the guild-scoped admin RPC', async () => {
+test('profile metadata overrides the approved request name after the guild-scoped admin RPC', async () => {
   const calls = [];
   const handler = createMembersHandler({
     backendFactory: () => ({ authenticate: async () => principal,
@@ -57,9 +57,9 @@ test('approved character name is fetched only after the guild-scoped admin RPC',
     serverConfig: () => ({ origin: 'https://exampleproject.supabase.co', secretKey: 'sb_secret_test' }),
     fetchImpl: async (url, init) => {
       calls.push({ url, init });
-      return calls.length === 1
-        ? Response.json({ status: 'ok', members: [{ user_id: USER, role: 'admin', status: 'active', can_edit: false, can_upload: false }] })
-        : Response.json([{ user_id: USER, character_name: 'Morpheo' }]);
+      if (calls.length === 1) return Response.json({ status: 'ok', members: [{ user_id: USER, role: 'admin', status: 'active', can_edit: false, can_upload: false }] });
+      if (calls.length === 2) return Response.json([{ user_id: USER, character_name: 'Oldname' }]);
+      return Response.json({ id: USER, user_metadata: { guild_character_names: { [GUILD]: 'Morpheo' } } });
     },
   });
   const response = await handler(request());
@@ -70,9 +70,10 @@ test('approved character name is fetched only after the guild-scoped admin RPC',
   });
   assert.equal(calls[1].url, `https://exampleproject.supabase.co/rest/v1/apoc_join_requests?select=user_id,character_name&guild_id=eq.${GUILD}&status=eq.approved&limit=100`);
   assert.equal(calls[1].init.headers.Authorization, 'Bearer sb_secret_test');
+  assert.equal(calls[2].url, `https://exampleproject.supabase.co/auth/v1/admin/users/${USER}`);
 });
 
-test('legacy invited members get a non-email compatibility label', async () => {
+test('legacy invited members can use profile metadata without exposing email', async () => {
   const calls = [];
   const handler = createMembersHandler({
     backendFactory: () => ({ authenticate: async () => principal,
@@ -80,16 +81,34 @@ test('legacy invited members get a non-email compatibility label', async () => {
     serverConfig: () => ({ origin: 'https://exampleproject.supabase.co', secretKey: 'sb_secret_test' }),
     fetchImpl: async (url, init) => {
       calls.push({ url, init });
-      return calls.length === 1
-        ? Response.json({ status: 'ok', members: [{ user_id: USER, role: 'member', status: 'active', can_edit: false, can_upload: false }] })
-        : Response.json([]);
+      if (calls.length === 1) return Response.json({ status: 'ok', members: [{ user_id: USER, role: 'member', status: 'active', can_edit: false, can_upload: false }] });
+      if (calls.length === 2) return Response.json([]);
+      return Response.json({ id: USER, user_metadata: { character_name: 'Legacyname' } });
     },
   });
   const response = await handler(request());
   const member = (await response.json()).members[0];
-  assert.equal(member.character_name, null);
-  assert.equal(member.email, 'Character not set');
+  assert.equal(member.character_name, 'Legacyname');
+  assert.equal(member.email, 'Legacyname');
   assert.doesNotMatch(member.email, /@/);
+});
+
+test('approved request name remains available when Auth profile lookup fails', async () => {
+  const calls = [];
+  const handler = createMembersHandler({
+    backendFactory: () => ({ authenticate: async () => principal,
+      membership: async () => ({ ...membership, role: 'admin' }) }),
+    serverConfig: () => ({ origin: 'https://exampleproject.supabase.co', secretKey: 'sb_secret_test' }),
+    fetchImpl: async (url, init) => {
+      calls.push({ url, init });
+      if (calls.length === 1) return Response.json({ status: 'ok', members: [{ user_id: USER, role: 'member', status: 'active', can_edit: false, can_upload: false }] });
+      if (calls.length === 2) return Response.json([{ user_id: USER, character_name: 'Fallback' }]);
+      throw new Error('Auth temporarily unavailable');
+    },
+  });
+  const member = (await (await handler(request())).json()).members[0];
+  assert.equal(member.character_name, 'Fallback');
+  assert.equal(member.email, 'Fallback');
 });
 
 test('invalid fields and self-promotion claims never reach RPC', async () => {

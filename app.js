@@ -29,6 +29,10 @@ const pairingCode = document.querySelector('#pairing-code');
 const pairingMessage = document.querySelector('#pairing-message');
 const raidDialog = document.querySelector('#raid-dialog');
 const awardDialog = document.querySelector('#award-dialog');
+const profileDialog = document.querySelector('#profile-dialog');
+const profileForm = document.querySelector('#profile-form');
+const profileCharacter = document.querySelector('#profile-character');
+const profileMessage = document.querySelector('#profile-message');
 const membersDialog = document.querySelector('#members-dialog');
 const joinRequestsDialog = document.querySelector('#join-requests-dialog');
 const joinRequestsButton = document.querySelector('#join-requests');
@@ -214,6 +218,7 @@ function saveSession(session) {
 
 function sessionExpired() {
   if (membersDialog.open) membersDialog.close();
+  if (profileDialog.open) profileDialog.close();
   if (joinRequestsDialog.open) joinRequestsDialog.close();
   if (raidDialog.open) raidDialog.close();
   if (awardDialog.open) awardDialog.close();
@@ -327,6 +332,7 @@ async function openDashboard(entry) {
   if (pairingDialog.open) pairingDialog.close();
   if (importDialog.open) importDialog.close();
   if (membersDialog.open) membersDialog.close();
+  if (profileDialog.open) profileDialog.close();
   if (joinRequestsDialog.open) joinRequestsDialog.close();
   if (raidDialog.open) raidDialog.close();
   if (awardDialog.open) awardDialog.close();
@@ -1435,6 +1441,48 @@ joinRequestsButton.addEventListener('click', async () => {
 });
 document.querySelector('#close-join-requests').addEventListener('click', () => joinRequestsDialog.close());
 
+document.querySelector('#open-profile').addEventListener('click', async () => {
+  if (!selectedGuildID) return;
+  profileCharacter.value = '';
+  profileMessage.textContent = 'Loading profile…';
+  profileMessage.className = 'message';
+  profileDialog.showModal();
+  try {
+    const response = await portalFetch(`/api/profile?guild=${encodeURIComponent(selectedGuildID)}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error?.message ?? 'Could not load your profile.');
+    if (!profileDialog.open) return;
+    profileCharacter.value = data.characterName ?? '';
+    profileMessage.textContent = data.characterName ? '' : 'Enter the character name you use in this guild.';
+    profileCharacter.focus();
+  } catch (error) {
+    profileMessage.textContent = error.message;
+    profileMessage.className = 'message error';
+  }
+});
+document.querySelector('#close-profile-dialog').addEventListener('click', () => profileDialog.close());
+profileForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!selectedGuildID) return;
+  const submit = document.querySelector('#save-profile');
+  submit.disabled = true;
+  profileMessage.textContent = 'Saving…';
+  profileMessage.className = 'message';
+  try {
+    const response = await portalFetch('/api/profile', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ guild: selectedGuildID, characterName: profileCharacter.value.trim() }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error?.message ?? 'Could not update your profile.');
+    profileCharacter.value = data.characterName;
+    profileMessage.textContent = 'Character name updated.';
+  } catch (error) {
+    profileMessage.textContent = error.message;
+    profileMessage.className = 'message error';
+  } finally { submit.disabled = false; }
+});
+
 function selectedMember() { return memberRows.find(member => member.user_id === memberSelect.value); }
 
 function populateMemberEditor() {
@@ -1606,6 +1654,7 @@ document.querySelector('#invite-password-form').addEventListener('submit', async
 
 document.querySelector('#back-to-guilds').addEventListener('click', () => {
   if (pairingDialog.open) pairingDialog.close();
+  if (profileDialog.open) profileDialog.close();
   if (membersDialog.open) membersDialog.close();
   if (joinRequestsDialog.open) joinRequestsDialog.close();
   dashboard.hidden = true;
@@ -1719,6 +1768,7 @@ form.addEventListener('submit', async (event) => {
 function clearPortalSession() {
   if (pairingDialog.open) pairingDialog.close();
   if (importDialog.open) importDialog.close();
+  if (profileDialog.open) profileDialog.close();
   if (membersDialog.open) membersDialog.close();
   if (joinRequestsDialog.open) joinRequestsDialog.close();
   if (raidDialog.open) raidDialog.close();
