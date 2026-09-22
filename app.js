@@ -1548,19 +1548,25 @@ form.addEventListener('submit', async (event) => {
   }
 });
 
-document.querySelector('#sign-out').addEventListener('click', () => {
+function clearPortalSession() {
   if (pairingDialog.open) pairingDialog.close();
+  if (importDialog.open) importDialog.close();
   if (membersDialog.open) membersDialog.close();
   if (raidDialog.open) raidDialog.close();
   if (awardDialog.open) awardDialog.close();
   state.session = null;
   activeRaid = null;
+  returnRaid = null;
   selectedGuildID = null;
+  selectedGuildName = '';
   canManageRaids = false;
+  rosterRequest += 1;
+  attendanceRequest += 1;
   sessionStorage.removeItem('apoc_session');
   sessionStorage.removeItem('apoc_access_token');
   sessionStorage.removeItem('apoc_invite_setup');
   sessionStorage.removeItem('apoc_invite_password_saved');
+  sessionStorage.removeItem('apoc_selected_guild');
   signedIn.hidden = true;
   inviteSetup.hidden = true;
   dashboard.hidden = true;
@@ -1571,7 +1577,25 @@ document.querySelector('#sign-out').addEventListener('click', () => {
   guildNav.hidden = true;
   shell.classList.remove('workspace-view');
   form.reset();
-});
+}
+
+async function signOutPortal() {
+  const accessToken = state.session?.access_token;
+  clearPortalSession();
+  if (!accessToken) return;
+  try {
+    const config = await getConfig();
+    await fetch(`${config.url}/auth/v1/logout?scope=local`, {
+      method: 'POST', cache: 'no-store',
+      headers: { apikey: config.publishableKey, Authorization: `Bearer ${accessToken}` },
+    });
+  } catch {
+    // Local sign-out is complete even if the network is unavailable.
+  }
+}
+
+document.querySelector('#sign-out').addEventListener('click', signOutPortal);
+document.querySelector('#nav-sign-out').addEventListener('click', signOutPortal);
 
 function receiveInviteLink() {
   if (typeof window === 'undefined') return false;

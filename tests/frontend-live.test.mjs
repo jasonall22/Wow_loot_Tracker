@@ -28,6 +28,7 @@ class Element {
   removeAttribute() {}
   getBoundingClientRect() { return { left: 30, right: 210, top: 40, bottom: 80 }; }
   focus() {}
+  reset() { this.value = ''; }
   showModal() { this.open = true; }
   close() { this.open = false; this.listeners.close?.(); }
 }
@@ -339,14 +340,54 @@ test('raid archive loads older pages and refreshes the visible range', async () 
   assert.equal(get('#raid-count').textContent, '54');
 });
 
-test('guild sections and connection button sit in the full-width top menu', () => {
+test('guild sections, connection, and logout sit in the full-width top menu', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
-  assert.match(html, /id="guild-nav" class="dashboard-topbar"[\s\S]*dashboard-logo[\s\S]*id="nav-overview"[\s\S]*id="open-roster"[\s\S]*id="open-attendance"[\s\S]*id="create-pairing"[\s\S]*<\/header>/);
+  assert.match(html, /id="guild-nav" class="dashboard-topbar"[\s\S]*dashboard-logo[\s\S]*id="nav-overview"[\s\S]*id="open-roster"[\s\S]*id="open-attendance"[\s\S]*id="create-pairing"[\s\S]*id="nav-sign-out"[^>]*>Log out<\/button>[\s\S]*<\/header>/);
   assert.match(html, /id="open-roster"[^>]*>Guild loot<\/button>/);
   assert.match(html, /id="open-attendance"[^>]*>Attendance<\/button>/);
   assert.doesNotMatch(html, /class="roster-trigger"/);
   assert.match(css, /\.dashboard-topbar\s*\{[^}]*justify-content:\s*space-between/);
+});
+
+test('top-menu logout clears the browser session and revokes only the current Supabase session', async () => {
+  const elements = new Map();
+  const get = (selector) => elements.get(selector) ?? elements.set(selector, new Element()).get(selector);
+  for (const selector of ['#signed-in', '#dashboard', '#raid-detail']) get(selector).hidden = true;
+  const storage = new Map([
+    ['apoc_session', JSON.stringify({ access_token: 'test-access-token', refresh_token: 'test-refresh-token', expires_at: 4102444800 })],
+    ['apoc_selected_guild', 'guild-1'],
+  ]);
+  const calls = [];
+  const fetch = async (input, options = {}) => {
+    calls.push({ input, options });
+    if (input === '/api/portal?view=guilds') return Response.json({ guilds: [] });
+    if (input === '/api/config') return Response.json({ url: 'https://example.supabase.co', publishableKey: 'test-key' });
+    if (input === 'https://example.supabase.co/auth/v1/logout?scope=local') return new Response(null, { status: 204 });
+    throw new Error(`unexpected request: ${input}`);
+  };
+  const context = createContext({
+    document: { hidden: false, querySelector: get, createElement: () => new Element(), addEventListener() {} },
+    fetch, Response, URL, AbortController, Date, JSON,
+    sessionStorage: {
+      getItem: (key) => storage.get(key) ?? null,
+      setItem: (key, value) => storage.set(key, value),
+      removeItem: (key) => storage.delete(key),
+    },
+    setInterval() {},
+    navigator: { clipboard: { writeText: async () => {} } },
+  });
+  new Script(appSource).runInContext(context);
+  await new Promise((resolve) => setImmediate(resolve));
+  await get('#nav-sign-out').listeners.click();
+  assert.equal(storage.has('apoc_session'), false);
+  assert.equal(storage.has('apoc_selected_guild'), false);
+  assert.equal(get('#signed-out').hidden, false);
+  assert.equal(get('#guild-nav').hidden, true);
+  const logout = calls.find(call => call.input.includes('/auth/v1/logout'));
+  assert.equal(logout.input, 'https://example.supabase.co/auth/v1/logout?scope=local');
+  assert.equal(logout.options.method, 'POST');
+  assert.equal(logout.options.headers.Authorization, 'Bearer test-access-token');
 });
 
 test('overview cards sit beside guild identity and archive stays below', () => {
