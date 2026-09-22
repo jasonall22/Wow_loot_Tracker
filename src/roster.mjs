@@ -1,5 +1,19 @@
 const normalized = value => String(value || '').trim().toLocaleLowerCase();
 const shortName = value => normalized(value).split('-')[0];
+const datedRaidName = /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december|session\s+\d+|recovered|live raid)\b/i;
+
+function zoneFromRaidName(value) {
+  const name = String(value || '').trim();
+  if (!name) return 'Zone unavailable';
+  for (const separator of [' - ', ' : ']) {
+    const parts = name.split(separator).map(part => part.trim()).filter(Boolean);
+    if (parts.length < 2) continue;
+    const datePart = parts.findIndex(part => datedRaidName.test(part));
+    if (datePart === 0) return parts.slice(1).join(separator);
+    if (datePart === parts.length - 1) return parts.slice(0, -1).join(separator);
+  }
+  return name;
+}
 
 function addIndex(index, value, player) {
   if (!value) return;
@@ -68,7 +82,7 @@ export function buildLootRoster(guildRoster, members, drops, raids) {
     if (!raid || !winner || !drop.award_type) continue;
     const player = resolve(winner);
     if (!player) continue;
-    player.loot.push({ ...drop, raid_name: raid.name, raid_date: raid.created_at });
+    player.loot.push({ ...drop, raid_name: raid.name, raid_zone: zoneFromRaidName(raid.name), raid_date: raid.created_at });
   }
 
   return [...players.values()].map(player => ({

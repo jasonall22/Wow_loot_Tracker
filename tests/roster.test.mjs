@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { buildLootRoster } from '../src/roster.mjs';
 
 test('current guild member receives all earlier attendance and awarded loot', () => {
-  const raids = [{ id: 'a', name: 'Raid A' }, { id: 'b', name: 'Raid B' }];
+  const raids = [{ id: 'a', name: 'Tuesday September 1st 2026 - Black Temple' }, { id: 'b', name: 'Hyjal : Wednesday September 2nd 2026' }];
   const guildRoster = [{ character_key: 'bel-realm', name: 'Bel-Realm', class: 'HUNTER',
     rank_name: 'Raider', rank_index: 4, is_current: true }];
   const members = ['a', 'b'].map(raid_id => ({ raid_id, character_key: 'bel-realm', name: 'Bel-Realm', class: 'HUNTER' }));
@@ -17,6 +17,7 @@ test('current guild member receives all earlier attendance and awarded loot', ()
   assert.equal(player.raidCount, 2);
   assert.equal(player.msCount, 1);
   assert.deepEqual(player.loot.map(drop => drop.item_name), ['New', 'Old']);
+  assert.deepEqual(player.loot.map(drop => drop.raid_zone), ['Hyjal', 'Black Temple']);
 });
 
 test('former members remain, deleted raids and PUGs are excluded, and ambiguous names are not attributed', () => {

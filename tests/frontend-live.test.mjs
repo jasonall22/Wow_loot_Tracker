@@ -44,7 +44,7 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   let deleted = false;
   let purged = false;
   let corrected = false;
-  const raid = { id: 'raid-1', name: 'Tonight', revision: 2, closed_at: null };
+  const raid = { id: 'raid-1', name: 'Thursday September 17th 2026 - Black Temple', revision: 2, closed_at: null };
   const adminActions = [];
   const attendance = [
     { character_key: 'player', name: 'Player', class: 'PRIEST', present: true },
@@ -207,7 +207,11 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   assert.equal(get('#roster-search').value, 'Player');
   assert.equal(get('#roster-list').children.length, 1);
   assert.equal(get('#roster-list').children[0].open, true);
-  assert.equal(get('#roster-list').children[0].children[1].children[0].children[0].children.at(-1).textContent, 'Kept');
+  const rosterAward = get('#roster-list').children[0].children[1].children[1];
+  assert.equal(rosterAward.children[0].children.at(-1).textContent, 'Kept');
+  assert.equal(rosterAward.children[1].textContent, 'Black Temple');
+  assert.equal(rosterAward.children[2].textContent, 'MS');
+  assert.notEqual(rosterAward.children[3].textContent, 'Date unavailable');
   assert.equal(get('#roster-current-count').textContent, 1);
   assert.equal(get('#roster-former-count').textContent, 1);
   assert.equal(get('#roster-rank-filter').value, '4');

@@ -620,6 +620,12 @@ function renderGuildRoster() {
     const history = document.createElement('div'); history.className = 'roster-history';
     if (!player.loot.length) {
       const empty = document.createElement('p'); empty.className = 'muted'; empty.textContent = 'No awarded loot recorded.'; history.append(empty);
+    } else {
+      const header = document.createElement('div'); header.className = 'roster-award-header';
+      for (const label of ['Item', 'Zone', 'Award', 'Date won']) {
+        const column = document.createElement('span'); column.textContent = label; header.append(column);
+      }
+      history.append(header);
     }
     for (const drop of player.loot) {
       const row = document.createElement('div'); row.className = 'roster-award';
@@ -637,11 +643,16 @@ function renderGuildRoster() {
         itemQuality(id).then(quality => { if (quality !== null) title.className = `loot-item item-q${quality}`; });
       }
       const label = document.createElement('strong'); label.textContent = drop.item_name || 'Unknown item'; title.append(label);
-      const details = document.createElement('span'); details.className = 'roster-award-meta';
+      const zone = document.createElement('span'); zone.className = 'roster-award-zone'; zone.setAttribute('data-label', 'Zone');
+      zone.textContent = drop.raid_zone || drop.raid_name || 'Zone unavailable';
+      zone.title = drop.raid_name || '';
+      const award = document.createElement('span'); award.className = `roster-award-type award-${String(drop.award_type || 'other').toLocaleLowerCase()}`; award.setAttribute('data-label', 'Award');
+      award.textContent = String(drop.award_type || 'Other').toUpperCase() === 'GB' ? 'Guild' : (drop.award_type || 'Other');
+      const dateWon = document.createElement('span'); dateWon.className = 'roster-award-date'; dateWon.setAttribute('data-label', 'Date won');
       const when = drop.awarded_at || drop.dropped_at;
       const date = when && Number.isFinite(Date.parse(when)) ? new Date(when).toLocaleString() : 'Date unavailable';
-      details.textContent = `${drop.award_type || 'Other'} · ${date} · ${drop.raid_name || 'Raid'}`;
-      row.append(title, details); history.append(row);
+      dateWon.textContent = date;
+      row.append(title, zone, award, dateWon); history.append(row);
     }
     card.append(history); list.append(card);
   }
