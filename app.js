@@ -1641,6 +1641,8 @@ async function loadRegistrationGuilds() {
 document.querySelector('#show-create-account').addEventListener('click', async () => {
   signedOut.hidden = true;
   createAccount.hidden = false;
+  document.querySelector('#create-account-request').hidden = false;
+  document.querySelector('#create-account-success').hidden = true;
   const notice = document.querySelector('#create-account-message');
   notice.textContent = '';
   notice.className = 'message';
@@ -1648,11 +1650,16 @@ document.querySelector('#show-create-account').addEventListener('click', async (
   catch (error) { notice.textContent = error.message; notice.className = 'message error'; }
 });
 
-document.querySelector('#back-to-sign-in').addEventListener('click', () => {
+function returnToSignInFromRegistration() {
   createAccount.hidden = true;
   signedOut.hidden = false;
+  document.querySelector('#create-account-request').hidden = false;
+  document.querySelector('#create-account-success').hidden = true;
   document.querySelector('#create-account-message').textContent = '';
-});
+}
+
+document.querySelector('#back-to-sign-in').addEventListener('click', returnToSignInFromRegistration);
+document.querySelector('#success-back-to-sign-in').addEventListener('click', returnToSignInFromRegistration);
 
 document.querySelector('#create-account-form').addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -1679,7 +1686,13 @@ document.querySelector('#create-account-form').addEventListener('submit', async 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error?.message ?? 'Could not create the account.');
     accountForm.reset();
-    notice.textContent = data.message;
+    notice.textContent = '';
+    document.querySelector('#create-account-request').hidden = true;
+    document.querySelector('#create-account-success').hidden = false;
+    document.querySelector('#create-account-success-message').textContent = data.confirmationRequired
+      ? 'Check your email and confirm your address. After that, wait for an officer or admin to approve your guild access.'
+      : 'Your email is confirmed. Wait for an officer or admin to approve your guild access.';
+    document.querySelector('#create-account-success-title').focus?.();
   } catch (error) { notice.textContent = error.message; notice.className = 'message error'; }
   finally { submit.disabled = false; }
 });

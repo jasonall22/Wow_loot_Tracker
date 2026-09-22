@@ -106,6 +106,7 @@ test('create-account form loads guilds and submits character identity for approv
   const elements = new Map();
   const get = selector => elements.get(selector) ?? elements.set(selector, new Element()).get(selector);
   get('#create-account').hidden = true;
+  get('#create-account-success').hidden = true;
   const calls = [];
   const fetch = async (input, options = {}) => {
     calls.push({ input, options });
@@ -137,7 +138,11 @@ test('create-account form loads guilds and submits character identity for approv
     guild: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', characterName: 'Morpheo',
     email: 'member@example.test', password: 'a-strong-password',
   });
-  assert.equal(get('#create-account-message').textContent, 'Waiting for approval.');
+  assert.equal(get('#create-account-message').textContent, '');
+  assert.equal(get('#create-account-request').hidden, true);
+  assert.equal(get('#create-account-success').hidden, false);
+  assert.equal(get('#create-account-success-message').textContent,
+    'Your email is confirmed. Wait for an officer or admin to approve your guild access.');
 });
 
 test('signup confirmation links create a session and show the pending guild screen', async () => {

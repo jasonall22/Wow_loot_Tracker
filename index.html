@@ -31,24 +31,34 @@
           <p id="message" class="message" role="status" aria-live="polite"></p>
         </div>
         <div id="create-account" hidden>
-          <p class="eyebrow">GUILD ACCESS REQUEST</p>
-          <h2>Create your account</h2>
-          <p class="muted">Choose your guild and enter your main character. An officer or admin must approve your request before you receive Member access.</p>
-          <form id="create-account-form" class="account-form">
-            <label for="register-guild">Guild</label>
-            <select id="register-guild" required><option value="">Loading guilds…</option></select>
-            <label for="register-character">Character name</label>
-            <input id="register-character" autocomplete="off" minlength="2" maxlength="24" required>
-            <label for="register-email">Email</label>
-            <input id="register-email" type="email" autocomplete="email" maxlength="254" required>
-            <label for="register-password">Password</label>
-            <input id="register-password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
-            <label for="register-password-confirm">Confirm password</label>
-            <input id="register-password-confirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
-            <button type="submit">Create account <span>→</span></button>
-          </form>
-          <button id="back-to-sign-in" class="secondary" type="button">Back to sign in</button>
-          <p id="create-account-message" class="message" role="status" aria-live="polite"></p>
+          <div id="create-account-request">
+            <p class="eyebrow">GUILD ACCESS REQUEST</p>
+            <h2>Create your account</h2>
+            <p class="muted">Choose your guild and enter your main character. An officer or admin must approve your request before you receive Member access.</p>
+            <form id="create-account-form" class="account-form">
+              <label for="register-guild">Guild</label>
+              <select id="register-guild" required><option value="">Loading guilds…</option></select>
+              <label for="register-character">Character name</label>
+              <input id="register-character" autocomplete="off" minlength="2" maxlength="24" required>
+              <label for="register-email">Email</label>
+              <input id="register-email" type="email" autocomplete="email" maxlength="254" required>
+              <label for="register-password">Password</label>
+              <input id="register-password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+              <label for="register-password-confirm">Confirm password</label>
+              <input id="register-password-confirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+              <button type="submit">Create account <span>→</span></button>
+            </form>
+            <button id="back-to-sign-in" class="secondary" type="button">Back to sign in</button>
+            <p id="create-account-message" class="message" role="status" aria-live="polite"></p>
+          </div>
+          <div id="create-account-success" class="account-success" hidden>
+            <div class="account-success-mark" aria-hidden="true">✓</div>
+            <p class="eyebrow">REQUEST RECEIVED</p>
+            <h2 id="create-account-success-title" tabindex="-1">Account created</h2>
+            <p id="create-account-success-message" class="account-success-lead"></p>
+            <p class="account-success-warning"><strong>Do not create another account.</strong> Your request is already waiting for an officer or admin to approve it.</p>
+            <button id="success-back-to-sign-in" type="button">Back to sign in <span>→</span></button>
+          </div>
         </div>
         <div id="signed-in" hidden>
           <img class="logo" src="/assets/apoc-logo.png" alt="APOC crest">

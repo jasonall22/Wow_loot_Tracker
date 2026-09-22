@@ -354,6 +354,7 @@ test('sign-in page collects guild, character, email, and password for approval',
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.match(html, /id="show-create-account"[^>]*>Create account<\/button>/);
   assert.match(html, /id="create-account-form"[\s\S]*id="register-guild"[\s\S]*id="register-character"[\s\S]*id="register-email"[\s\S]*id="register-password"[\s\S]*id="register-password-confirm"/);
+  assert.match(html, /id="create-account-success"[^>]*hidden[\s\S]*>Account created<\/h2>[\s\S]*Do not create another account/);
   assert.match(html, /id="join-requests-dialog"[\s\S]*Approve a verified guild member/);
 });
 
