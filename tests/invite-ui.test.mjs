@@ -101,3 +101,67 @@ test('reloaded invite finishes joining without setting the password a second tim
   assert.equal(storage.has('apoc_invite_setup'), false);
   assert.equal(storage.has('apoc_invite_password_saved'), false);
 });
+
+test('create-account form loads guilds and submits character identity for approval', async () => {
+  const elements = new Map();
+  const get = selector => elements.get(selector) ?? elements.set(selector, new Element()).get(selector);
+  get('#create-account').hidden = true;
+  const calls = [];
+  const fetch = async (input, options = {}) => {
+    calls.push({ input, options });
+    if (input === '/api/register' && (!options.method || options.method === 'GET')) {
+      return Response.json({ guilds: [{ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'APOC', realm: 'Nightslayer', faction: 'Horde' }] });
+    }
+    if (input === '/api/register' && options.method === 'POST') return Response.json({ status: 'pending', message: 'Waiting for approval.' }, { status: 201 });
+    throw new Error(`unexpected request: ${input}`);
+  };
+  const context = createContext({
+    document: { hidden: false, querySelector: get, createElement: () => new Element(), addEventListener() {} },
+    window: { location: { hash: '' } }, fetch, Response, URL, URLSearchParams, Date, JSON, AbortController,
+    sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+    setInterval() {}, navigator: { clipboard: { writeText: async () => {} } },
+  });
+  new Script(appSource).runInContext(context);
+  await get('#show-create-account').listeners.click();
+  assert.equal(get('#signed-out').hidden, true);
+  assert.equal(get('#create-account').hidden, false);
+  assert.equal(get('#register-guild').children[1].textContent, 'APOC · Nightslayer · Horde');
+  get('#register-guild').value = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  get('#register-character').value = 'Morpheo';
+  get('#register-email').value = 'member@example.test';
+  get('#register-password').value = 'a-strong-password';
+  get('#register-password-confirm').value = 'a-strong-password';
+  const form = get('#create-account-form');
+  await form.listeners.submit({ preventDefault() {}, currentTarget: form });
+  assert.deepEqual(JSON.parse(calls[1].options.body), {
+    guild: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', characterName: 'Morpheo',
+    email: 'member@example.test', password: 'a-strong-password',
+  });
+  assert.equal(get('#create-account-message').textContent, 'Waiting for approval.');
+});
+
+test('signup confirmation links create a session and show the pending guild screen', async () => {
+  const elements = new Map();
+  const get = selector => elements.get(selector) ?? elements.set(selector, new Element()).get(selector);
+  const storage = new Map();
+  let cleanUrl = '';
+  const window = { location: { hash: '#access_token=one.two.three&refresh_token=refresh-token&type=signup&expires_in=3600', pathname: '/', search: '' },
+    history: { replaceState: (_, __, value) => { cleanUrl = value; } } };
+  const fetch = async input => {
+    if (input === '/api/portal?view=guilds') return Response.json({ guilds: [] });
+    throw new Error(`unexpected request: ${input}`);
+  };
+  const context = createContext({
+    document: { hidden: false, querySelector: get, createElement: () => new Element(), addEventListener() {} },
+    window, fetch, Response, URL, URLSearchParams, Date, JSON, AbortController,
+    sessionStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) },
+    setInterval() {}, navigator: { clipboard: { writeText: async () => {} } },
+  });
+  new Script(appSource).runInContext(context);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(cleanUrl, '/');
+  assert.equal(get('#signed-in').hidden, false);
+  assert.equal(get('#signed-out').hidden, true);
+  assert.equal(JSON.parse(storage.get('apoc_session')).access_token, 'one.two.three');
+  assert.match(get('#guild-message').textContent, /waiting for approval/i);
+});

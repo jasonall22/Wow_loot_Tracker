@@ -11,6 +11,8 @@ h1 span { color: #78d7bb; } h2 { font-size: 29px; letter-spacing: -.04em; margin
 .card { background: rgba(20, 29, 43, .86); border: 1px solid #2e3b50; border-radius: 24px; padding: 36px; box-shadow: 0 25px 90px rgba(0,0,0,.3); }.logo { display: block; width: 78px; height: 78px; object-fit: contain; margin: -8px 0 34px; filter: drop-shadow(0 8px 16px rgba(0,0,0,.35)); }
 .muted { color: #9daabd; font-size: 14px; line-height: 1.5; margin: 0 0 28px; } label { display: block; color: #c7d1df; font-size: 12px; font-weight: 700; margin: 18px 0 8px; }
 input { width: 100%; border: 1px solid #3a485c; border-radius: 10px; background: #111a28; color: #fff; padding: 13px 14px; font: inherit; outline: none; } input:focus { border-color: #78d7bb; box-shadow: 0 0 0 3px rgba(120,215,187,.12); }
+.account-form select { width: 100%; border: 1px solid #3a485c; border-radius: 10px; background: #111a28; color: #fff; padding: 13px 14px; font: inherit; outline: none; }
+.account-form select:focus { border-color: #78d7bb; box-shadow: 0 0 0 3px rgba(120,215,187,.12); }
 button { width: 100%; border: 0; border-radius: 10px; background: #78d7bb; color: #0c111b; cursor: pointer; font: inherit; font-weight: 800; padding: 14px; margin-top: 24px; } button span { float: right; font-size: 19px; line-height: 14px; } button:disabled { opacity: .55; cursor: wait; }
 .message { min-height: 20px; color: #9daabd; font-size: 13px; margin: 16px 0 0; }.message.error { color: #ff9f9f; }.guild-list { display: grid; gap: 10px; }.guild { margin: 0; text-align: left; background: #172336; color: #fff; border: 1px solid #334258; }.guild span { color: #78d7bb; font-size: 11px; float: right; margin-top: 3px; }.guild span b { font-size: 16px; }.secondary { background: transparent; border: 1px solid #3a485c; color: #d4dce8; }
 .dashboard-logo { width: 58px; height: 58px; margin: -8px 0 18px; }.back { width: auto; padding: 0; margin: 0 0 34px; background: transparent; color: #78d7bb; font-size: 12px; text-align: left; }.dashboard-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }.dashboard-heading .muted { margin-bottom: 0; }.role-pill { border: 1px solid #3b5e5b; color: #78d7bb; border-radius: 99px; font-size: 11px; font-weight: 800; padding: 6px 10px; text-transform: uppercase; }.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 28px 0 32px; }.metrics div { background: #172336; border: 1px solid #2d3b4f; border-radius: 12px; padding: 14px; }.metrics span { display: block; color: #8d9bad; font-size: 10px; font-weight: 800; letter-spacing: .13em; }.metrics strong { display: block; font-size: 24px; margin-top: 7px; }.section-heading { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid #2d3b4f; padding-bottom: 12px; }.section-heading .eyebrow { margin: 0; }.section-heading span { color: #8d9bad; font-size: 11px; }.raid-list { display: grid; }.raid-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #263449; padding: 16px 0; }.raid-row strong, .raid-row span { display: block; }.raid-row strong { font-size: 14px; }.raid-row span { color: #8d9bad; font-size: 11px; margin-top: 5px; }.raid-row > b { color: #78d7bb; font-size: 17px; }
@@ -208,6 +210,13 @@ input:focus { border-color: var(--wow-gold); box-shadow: 0 0 0 3px rgba(223, 173
 .member-toggle { display: flex; align-items: center; gap: 10px; font-size: 14px; }
 .member-toggle input { width: auto; margin: 0; accent-color: var(--wow-gold); }
 .member-divider { height: 1px; margin: 26px 0 8px; background: #4c4b49; }
+.join-request-list { display: grid; gap: 10px; margin-top: 18px; }
+.join-request-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 16px; padding: 14px; border: 1px solid #394152; border-radius: 12px; background: #151e2c; }
+.join-request-row strong, .join-request-row small { display: block; }
+.join-request-row small { margin-top: 4px; color: #aeb8c7; }
+.join-request-actions { display: flex; align-items: center; gap: 8px; }
+.join-request-actions button { width: auto; margin: 0; padding: 8px 11px; font-size: 12px; }
+.join-request-alert { border-color: var(--wow-gold); color: var(--wow-gold-bright); }
 .dashboard-topbar .dashboard-actions { gap: 10px; }
 .danger-button { background: #4b2323; color: #ffe3df; border: 1px solid #a46565; }
 .danger-button:hover { background: #653030; }
@@ -232,3 +241,4 @@ input:focus { border-color: var(--wow-gold); box-shadow: 0 0 0 3px rgba(223, 173
   .drop-edit { grid-column: 3; }
 }
 @media (max-width: 700px) { .dashboard-topbar { flex-wrap: wrap; gap: 12px; }.dashboard-topbar .dashboard-actions { margin-left: auto; width: auto; }.guild-menu { order: 3; width: 100%; justify-content: stretch; }.guild-menu-link { flex: 1; }.pairing-trigger { white-space: normal; } }
+@media (max-width: 540px) { .join-request-row { grid-template-columns: 1fr; }.join-request-actions { justify-content: flex-start; } }

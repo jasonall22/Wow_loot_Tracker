@@ -27,7 +27,28 @@
             <input id="password" name="password" type="password" autocomplete="current-password" required>
             <button type="submit">Sign in <span>→</span></button>
           </form>
+          <button id="show-create-account" class="secondary" type="button">Create account</button>
           <p id="message" class="message" role="status" aria-live="polite"></p>
+        </div>
+        <div id="create-account" hidden>
+          <p class="eyebrow">GUILD ACCESS REQUEST</p>
+          <h2>Create your account</h2>
+          <p class="muted">Choose your guild and enter your main character. An officer or admin must approve your request before you receive Member access.</p>
+          <form id="create-account-form" class="account-form">
+            <label for="register-guild">Guild</label>
+            <select id="register-guild" required><option value="">Loading guilds…</option></select>
+            <label for="register-character">Character name</label>
+            <input id="register-character" autocomplete="off" minlength="2" maxlength="24" required>
+            <label for="register-email">Email</label>
+            <input id="register-email" type="email" autocomplete="email" maxlength="254" required>
+            <label for="register-password">Password</label>
+            <input id="register-password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+            <label for="register-password-confirm">Confirm password</label>
+            <input id="register-password-confirm" type="password" autocomplete="new-password" minlength="12" maxlength="128" required>
+            <button type="submit">Create account <span>→</span></button>
+          </form>
+          <button id="back-to-sign-in" class="secondary" type="button">Back to sign in</button>
+          <p id="create-account-message" class="message" role="status" aria-live="polite"></p>
         </div>
         <div id="signed-in" hidden>
           <img class="logo" src="/assets/apoc-logo.png" alt="APOC crest">
@@ -62,6 +83,7 @@
               <button id="open-attendance" class="guild-menu-link" type="button">Attendance</button>
             </nav>
             <div class="dashboard-actions">
+              <button id="join-requests" class="secondary compact-button" type="button" hidden>Account requests</button>
               <button id="manage-members" class="secondary compact-button" type="button" hidden>Manage members</button>
               <button id="import-raid" class="secondary compact-button" type="button" hidden>Import raid</button>
               <button id="create-pairing" class="pairing-trigger" type="button" hidden>Connection code</button>
@@ -203,6 +225,14 @@
           <label class="member-toggle"><input id="member-edit" type="checkbox"> Allow officer edits</label>
           <p id="members-dialog-message" class="message" role="status" aria-live="polite"></p>
           <button id="save-member" type="button">Save member access</button>
+        </dialog>
+        <dialog id="join-requests-dialog" class="pairing-dialog edit-dialog" aria-labelledby="join-requests-title">
+          <button id="close-join-requests" class="dialog-close" type="button" aria-label="Close account requests">×</button>
+          <p class="eyebrow">GUILD ACCESS</p>
+          <h2 id="join-requests-title">Account requests</h2>
+          <p class="muted">Approve a verified guild member to give them the Member role. Approval does not grant upload, edit, officer, or admin access.</p>
+          <div id="join-request-list" class="join-request-list"></div>
+          <p id="join-requests-message" class="message" role="status" aria-live="polite"></p>
         </dialog>
         <dialog id="raid-dialog" class="pairing-dialog edit-dialog" aria-labelledby="raid-dialog-title">
           <button id="close-raid-dialog" class="dialog-close" type="button" aria-label="Close raid management">×</button>

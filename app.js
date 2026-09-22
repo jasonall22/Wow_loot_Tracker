@@ -4,6 +4,7 @@ import { extractRaidExport } from './src/export-file.mjs';
 const state = { config: null, session: null };
 const shell = document.querySelector('.shell');
 const signedOut = document.querySelector('#signed-out');
+const createAccount = document.querySelector('#create-account');
 const signedIn = document.querySelector('#signed-in');
 const inviteSetup = document.querySelector('#invite-setup');
 const dashboard = document.querySelector('#dashboard');
@@ -29,6 +30,10 @@ const pairingMessage = document.querySelector('#pairing-message');
 const raidDialog = document.querySelector('#raid-dialog');
 const awardDialog = document.querySelector('#award-dialog');
 const membersDialog = document.querySelector('#members-dialog');
+const joinRequestsDialog = document.querySelector('#join-requests-dialog');
+const joinRequestsButton = document.querySelector('#join-requests');
+const joinRequestList = document.querySelector('#join-request-list');
+const joinRequestsMessage = document.querySelector('#join-requests-message');
 const memberSelect = document.querySelector('#member-select');
 const membersNotice = document.querySelector('#members-dialog-message');
 let memberRows = [];
@@ -54,6 +59,8 @@ let attendanceRequest = 0;
 let raidMembers = [];
 let editingDrop = null;
 let canManageRaids = false;
+let canApproveMembers = false;
+let joinRequestRows = [];
 let refreshPromise = null;
 let refreshingView = false;
 let raidArchiveSignature = '';
@@ -207,6 +214,7 @@ function saveSession(session) {
 
 function sessionExpired() {
   if (membersDialog.open) membersDialog.close();
+  if (joinRequestsDialog.open) joinRequestsDialog.close();
   if (raidDialog.open) raidDialog.close();
   if (awardDialog.open) awardDialog.close();
   state.session = null;
@@ -214,12 +222,14 @@ function sessionExpired() {
   returnRaid = null;
   selectedGuildID = null;
   canManageRaids = false;
+  canApproveMembers = false;
   sessionStorage.removeItem('apoc_session');
   sessionStorage.removeItem('apoc_access_token');
   sessionStorage.removeItem('apoc_invite_setup');
   sessionStorage.removeItem('apoc_invite_password_saved');
   signedIn.hidden = true;
   inviteSetup.hidden = true;
+  createAccount.hidden = true;
   dashboard.hidden = true;
   raidDetail.hidden = true;
   guildRoster.hidden = true;
@@ -317,6 +327,7 @@ async function openDashboard(entry) {
   if (pairingDialog.open) pairingDialog.close();
   if (importDialog.open) importDialog.close();
   if (membersDialog.open) membersDialog.close();
+  if (joinRequestsDialog.open) joinRequestsDialog.close();
   if (raidDialog.open) raidDialog.close();
   if (awardDialog.open) awardDialog.close();
   const details = entry.guild ?? {};
@@ -330,6 +341,7 @@ async function openDashboard(entry) {
   guildAttendance.hidden = true;
   attendanceRequest += 1;
   canManageRaids = entry.permissions?.manageRaids === true;
+  canApproveMembers = entry.permissions?.approveMembers === true;
   raidArchiveSignature = '';
   archivedRaidSignature = '';
   raidArchiveVisibleLimit = RAID_ARCHIVE_PAGE_SIZE;
@@ -346,6 +358,9 @@ async function openDashboard(entry) {
   pairingButton.hidden = entry.permissions?.uploadRaids !== true;
   importButton.hidden = entry.permissions?.uploadRaids !== true;
   document.querySelector('#manage-members').hidden = entry.permissions?.manageMembers !== true;
+  joinRequestsButton.hidden = !canApproveMembers;
+  joinRequestsButton.textContent = 'Account requests';
+  joinRequestsButton.className = 'secondary compact-button';
   const raidList = document.querySelector('#raid-list');
   raidList.replaceChildren();
   archivedRaidList.replaceChildren();
@@ -359,6 +374,7 @@ async function openDashboard(entry) {
     loadRaidArchive(details.id),
     canManageRaids ? loadArchivedRaids(details.id) : Promise.resolve(),
   ]);
+  if (canApproveMembers) loadJoinRequests(details.id, true).catch(() => {});
 }
 
 async function loadRaidArchive(guildID, quiet = false) {
@@ -1130,6 +1146,7 @@ async function refreshVisible() {
     else if (!dashboard.hidden && selectedGuildID) await Promise.all([
       loadRaidArchive(selectedGuildID, true),
       canManageRaids ? loadArchivedRaids(selectedGuildID, true) : Promise.resolve(),
+      canApproveMembers ? loadJoinRequests(selectedGuildID, true).catch(() => {}) : Promise.resolve(),
     ]);
   } finally { refreshingView = false; }
 }
@@ -1347,6 +1364,77 @@ document.querySelector('#save-award').addEventListener('click', async () => {
   finally { button.disabled = false; }
 });
 
+function renderJoinRequests() {
+  joinRequestList.replaceChildren();
+  joinRequestsButton.textContent = joinRequestRows.length ? `Account requests (${joinRequestRows.length})` : 'Account requests';
+  joinRequestsButton.className = joinRequestRows.length ? 'secondary compact-button join-request-alert' : 'secondary compact-button';
+  if (!joinRequestRows.length) {
+    const empty = document.createElement('p');
+    empty.className = 'muted';
+    empty.textContent = 'No account requests are waiting for approval.';
+    joinRequestList.append(empty);
+    return;
+  }
+  for (const request of joinRequestRows) {
+    const row = document.createElement('div'); row.className = 'join-request-row';
+    const identity = document.createElement('div');
+    const name = document.createElement('strong'); name.textContent = request.character_name;
+    const email = document.createElement('small'); email.textContent = request.email;
+    const date = document.createElement('small');
+    date.textContent = request.created_at && Number.isFinite(Date.parse(request.created_at))
+      ? `Requested ${new Date(request.created_at).toLocaleString()}` : 'Request date unavailable';
+    identity.append(name, email, date);
+    const actions = document.createElement('div'); actions.className = 'join-request-actions';
+    const approve = document.createElement('button'); approve.type = 'button'; approve.textContent = 'Approve';
+    const deny = document.createElement('button'); deny.type = 'button'; deny.textContent = 'Decline'; deny.className = 'secondary';
+    const review = async (action) => {
+      approve.disabled = true; deny.disabled = true;
+      joinRequestsMessage.textContent = action === 'approve' ? `Approving ${request.character_name}…` : `Declining ${request.character_name}…`;
+      joinRequestsMessage.className = 'message';
+      try {
+        const response = await portalFetch('/api/join-requests', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ guild: selectedGuildID, requestId: request.id, action }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error?.message ?? 'Could not review this account request.');
+        await loadJoinRequests(selectedGuildID, true);
+        joinRequestsMessage.textContent = action === 'approve'
+          ? `${request.character_name} now has Member access.` : `${request.character_name}'s request was declined.`;
+      } catch (error) {
+        joinRequestsMessage.textContent = error.message;
+        joinRequestsMessage.className = 'message error';
+        approve.disabled = false; deny.disabled = false;
+      }
+    };
+    approve.addEventListener('click', () => review('approve'));
+    deny.addEventListener('click', () => review('deny'));
+    actions.append(approve, deny); row.append(identity, actions); joinRequestList.append(row);
+  }
+}
+
+async function loadJoinRequests(guildID, quiet = false) {
+  if (!canApproveMembers || guildID !== selectedGuildID) return;
+  if (!quiet) { joinRequestsMessage.textContent = 'Loading account requests…'; joinRequestsMessage.className = 'message'; }
+  const response = await portalFetch(`/api/join-requests?guild=${encodeURIComponent(guildID)}`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error?.message ?? 'Could not load account requests.');
+  if (guildID !== selectedGuildID) return;
+  joinRequestRows = Array.isArray(data.requests) ? data.requests : [];
+  renderJoinRequests();
+  if (!quiet) joinRequestsMessage.textContent = '';
+}
+
+joinRequestsButton.addEventListener('click', async () => {
+  if (!selectedGuildID || !canApproveMembers) return;
+  joinRequestsMessage.textContent = 'Loading account requests…';
+  joinRequestsMessage.className = 'message';
+  joinRequestsDialog.showModal();
+  try { await loadJoinRequests(selectedGuildID); }
+  catch (error) { joinRequestsMessage.textContent = error.message; joinRequestsMessage.className = 'message error'; }
+});
+document.querySelector('#close-join-requests').addEventListener('click', () => joinRequestsDialog.close());
+
 function selectedMember() { return memberRows.find(member => member.user_id === memberSelect.value); }
 
 function populateMemberEditor() {
@@ -1452,6 +1540,7 @@ document.querySelector('#save-member').addEventListener('click', async () => {
 function showSignedIn(checkInvites = false) {
   guildNav.hidden = true;
   inviteSetup.hidden = true;
+  createAccount.hidden = true;
   signedOut.hidden = true;
   signedIn.hidden = false;
   guildMessage.textContent = '';
@@ -1518,6 +1607,7 @@ document.querySelector('#invite-password-form').addEventListener('submit', async
 document.querySelector('#back-to-guilds').addEventListener('click', () => {
   if (pairingDialog.open) pairingDialog.close();
   if (membersDialog.open) membersDialog.close();
+  if (joinRequestsDialog.open) joinRequestsDialog.close();
   dashboard.hidden = true;
   guildRoster.hidden = true;
   guildAttendance.hidden = true;
@@ -1528,6 +1618,71 @@ document.querySelector('#back-to-guilds').addEventListener('click', () => {
   shell.classList.remove('workspace-view');
 });
 document.querySelector('#back-to-dashboard').addEventListener('click', returnToOverview);
+
+async function loadRegistrationGuilds() {
+  const select = document.querySelector('#register-guild');
+  select.disabled = true;
+  select.replaceChildren();
+  const loading = document.createElement('option'); loading.value = ''; loading.textContent = 'Loading guilds…'; select.append(loading);
+  const response = await fetch('/api/register', { cache: 'no-store' });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !Array.isArray(data.guilds)) throw new Error(data.error?.message ?? 'Could not load guilds.');
+  select.replaceChildren();
+  const prompt = document.createElement('option'); prompt.value = ''; prompt.textContent = 'Choose your guild'; select.append(prompt);
+  for (const guild of data.guilds) {
+    const option = document.createElement('option');
+    option.value = guild.id;
+    option.textContent = [guild.name, guild.realm, guild.faction].filter(Boolean).join(' · ');
+    select.append(option);
+  }
+  select.disabled = false;
+}
+
+document.querySelector('#show-create-account').addEventListener('click', async () => {
+  signedOut.hidden = true;
+  createAccount.hidden = false;
+  const notice = document.querySelector('#create-account-message');
+  notice.textContent = '';
+  notice.className = 'message';
+  try { await loadRegistrationGuilds(); }
+  catch (error) { notice.textContent = error.message; notice.className = 'message error'; }
+});
+
+document.querySelector('#back-to-sign-in').addEventListener('click', () => {
+  createAccount.hidden = true;
+  signedOut.hidden = false;
+  document.querySelector('#create-account-message').textContent = '';
+});
+
+document.querySelector('#create-account-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const accountForm = event.currentTarget;
+  const submit = accountForm.querySelector('button');
+  const notice = document.querySelector('#create-account-message');
+  const password = document.querySelector('#register-password').value;
+  if (password !== document.querySelector('#register-password-confirm').value) {
+    notice.textContent = 'The passwords do not match.';
+    notice.className = 'message error';
+    return;
+  }
+  submit.disabled = true;
+  notice.textContent = 'Creating your account request…';
+  notice.className = 'message';
+  try {
+    const response = await fetch('/api/register', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ guild: document.querySelector('#register-guild').value,
+        characterName: document.querySelector('#register-character').value.trim(),
+        email: document.querySelector('#register-email').value.trim(), password }),
+      cache: 'no-store',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error?.message ?? 'Could not create the account.');
+    accountForm.reset();
+    notice.textContent = data.message;
+  } catch (error) { notice.textContent = error.message; notice.className = 'message error'; }
+  finally { submit.disabled = false; }
+});
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -1552,6 +1707,7 @@ function clearPortalSession() {
   if (pairingDialog.open) pairingDialog.close();
   if (importDialog.open) importDialog.close();
   if (membersDialog.open) membersDialog.close();
+  if (joinRequestsDialog.open) joinRequestsDialog.close();
   if (raidDialog.open) raidDialog.close();
   if (awardDialog.open) awardDialog.close();
   state.session = null;
@@ -1560,6 +1716,8 @@ function clearPortalSession() {
   selectedGuildID = null;
   selectedGuildName = '';
   canManageRaids = false;
+  canApproveMembers = false;
+  joinRequestRows = [];
   rosterRequest += 1;
   attendanceRequest += 1;
   sessionStorage.removeItem('apoc_session');
@@ -1569,6 +1727,7 @@ function clearPortalSession() {
   sessionStorage.removeItem('apoc_selected_guild');
   signedIn.hidden = true;
   inviteSetup.hidden = true;
+  createAccount.hidden = true;
   dashboard.hidden = true;
   raidDetail.hidden = true;
   guildRoster.hidden = true;
@@ -1597,21 +1756,27 @@ async function signOutPortal() {
 document.querySelector('#sign-out').addEventListener('click', signOutPortal);
 document.querySelector('#nav-sign-out').addEventListener('click', signOutPortal);
 
-function receiveInviteLink() {
+function receiveAuthLink() {
   if (typeof window === 'undefined') return false;
   const hash = window.location?.hash;
   if (!hash) return false;
   const params = new URLSearchParams(hash.slice(1));
-  if (params.get('type') !== 'invite' && !params.has('error')) return false;
+  const type = params.get('type');
+  if (!['invite', 'signup'].includes(type) && !params.has('error')) return false;
   window.history?.replaceState(null, '', window.location.pathname + window.location.search);
   const accessToken = params.get('access_token');
   const refreshToken = params.get('refresh_token');
-  if (params.get('type') !== 'invite' || !accessToken || !refreshToken) {
-    setMessage('This invitation link is invalid or expired. Ask your guild admin for a new one.', 'error');
+  if (!['invite', 'signup'].includes(type) || !accessToken || !refreshToken) {
+    setMessage('This account link is invalid or expired. Request a new email and try again.', 'error');
     return true;
   }
   saveSession({ access_token: accessToken, refresh_token: refreshToken,
     expires_in: Number(params.get('expires_in') ?? 3600) });
+  if (type === 'signup') {
+    showSignedIn();
+    guildMessage.textContent = 'Email confirmed. Your account is waiting for approval from an officer or admin.';
+    return true;
+  }
   sessionStorage.setItem('apoc_invite_setup', '1');
   sessionStorage.removeItem('apoc_invite_password_saved');
   updateInviteSetup();
@@ -1621,7 +1786,7 @@ function receiveInviteLink() {
   return true;
 }
 
-const inviteLinkHandled = receiveInviteLink();
+const inviteLinkHandled = receiveAuthLink();
 const existingSession = sessionStorage.getItem('apoc_session');
 const existingToken = sessionStorage.getItem('apoc_access_token');
 if (!inviteLinkHandled && (existingSession || existingToken)) {

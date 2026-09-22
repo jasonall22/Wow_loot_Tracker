@@ -343,11 +343,18 @@ test('raid archive loads older pages and refreshes the visible range', async () 
 test('guild sections, connection, and logout sit in the full-width top menu', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
-  assert.match(html, /id="guild-nav" class="dashboard-topbar"[\s\S]*dashboard-logo[\s\S]*id="nav-overview"[\s\S]*id="open-roster"[\s\S]*id="open-attendance"[\s\S]*id="create-pairing"[\s\S]*id="nav-sign-out"[^>]*>Log out<\/button>[\s\S]*<\/header>/);
+  assert.match(html, /id="guild-nav" class="dashboard-topbar"[\s\S]*dashboard-logo[\s\S]*id="nav-overview"[\s\S]*id="open-roster"[\s\S]*id="open-attendance"[\s\S]*id="join-requests"[\s\S]*id="create-pairing"[\s\S]*id="nav-sign-out"[^>]*>Log out<\/button>[\s\S]*<\/header>/);
   assert.match(html, /id="open-roster"[^>]*>Guild loot<\/button>/);
   assert.match(html, /id="open-attendance"[^>]*>Attendance<\/button>/);
   assert.doesNotMatch(html, /class="roster-trigger"/);
   assert.match(css, /\.dashboard-topbar\s*\{[^}]*justify-content:\s*space-between/);
+});
+
+test('sign-in page collects guild, character, email, and password for approval', () => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.match(html, /id="show-create-account"[^>]*>Create account<\/button>/);
+  assert.match(html, /id="create-account-form"[\s\S]*id="register-guild"[\s\S]*id="register-character"[\s\S]*id="register-email"[\s\S]*id="register-password"[\s\S]*id="register-password-confirm"/);
+  assert.match(html, /id="join-requests-dialog"[\s\S]*Approve a verified guild member/);
 });
 
 test('top-menu logout clears the browser session and revokes only the current Supabase session', async () => {

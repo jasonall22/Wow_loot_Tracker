@@ -5,18 +5,18 @@ import { GUILD, OTHER_GUILD, OTHER_USER, principal, membership } from './fixture
 
 test('regular member views ordinary data, not comparisons, edits, upload or administration', () => {
   assert.deepEqual(permissionsFor(principal, membership, GUILD), {
-    viewRaids: true, viewComparisons: false, editRecords: false, uploadRaids: false, manageMembers: false, manageRaids: false,
+    viewRaids: true, viewComparisons: false, editRecords: false, uploadRaids: false, approveMembers: false, manageMembers: false, manageRaids: false,
   });
 });
 test('uploader does not inherit officer privileges', () => {
   assert.deepEqual(permissionsFor(principal, { ...membership, can_upload: true }, GUILD), {
-    viewRaids: true, viewComparisons: false, editRecords: false, uploadRaids: true, manageMembers: false, manageRaids: false,
+    viewRaids: true, viewComparisons: false, editRecords: false, uploadRaids: true, approveMembers: false, manageMembers: false, manageRaids: false,
   });
 });
 test('officer comparison, edit and upload permissions are independent', () => {
   const officer = { ...membership, role: 'officer' };
   assert.deepEqual(permissionsFor(principal, officer, GUILD), {
-    viewRaids: true, viewComparisons: true, editRecords: false, uploadRaids: false, manageMembers: false, manageRaids: false,
+    viewRaids: true, viewComparisons: true, editRecords: false, uploadRaids: false, approveMembers: true, manageMembers: false, manageRaids: false,
   });
   assert.equal(permissionsFor(principal, { ...officer, can_edit: true }, GUILD).editRecords, true);
   assert.equal(permissionsFor(principal, { ...officer, can_upload: true }, GUILD).editRecords, false);
@@ -49,7 +49,7 @@ test('unknown and prototype capability names cannot pass', () => {
   for (const action of ['toString', '__proto__', 'constructor', 'deleteEverything']) {
     assert.throws(() => requirePermission(principal, { ...membership, role: 'admin' }, GUILD, action), { status: 403 });
   }
-  assert.equal(ACTIONS.length, 6);
+  assert.equal(ACTIONS.length, 7);
 });
 test('identifiers are normalized and injection-like identifiers rejected', () => {
   assert.equal(requireID(GUILD.toUpperCase()), GUILD);
