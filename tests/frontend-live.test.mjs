@@ -83,7 +83,10 @@ test('an open raid detail refreshes a removed drop without a user click', async 
     ] });
     if (view === 'roster_members') return Response.json({ roster_members: [{ raid_id: 'raid-1', character_key: 'player', name: 'Player', class: 'PRIEST' }] });
     if (view === 'roster_drops') return Response.json({ roster_drops: [
-      { raid_id: 'raid-1', id: 'drop-1', item_id: 32336, item_name: 'Kept', winner: 'Player', award_type: 'MS', awarded_at: '2026-09-17T13:00:00Z' },
+      { raid_id: 'raid-1', id: 'drop-1', item_id: 32336, item_name: 'Kept', boss: 'Illidan', winner: 'Player', award_type: 'MS', awarded_at: '2026-09-17T13:00:00Z',
+        priority: 'Holy Paladin > Priest', priority_note: 'Best-in-slot healing weapon',
+        roll_data: { startedAt: '2026-09-17T12:58:00Z', endsAt: '2026-09-17T12:59:00Z', closed: true, copyCount: 1,
+          entries: [{ name: 'Player', roll: 97, type: 'MS' }, { name: 'Backup', roll: 42, type: 'OS' }] } },
       { raid_id: 'raid-1', id: 'drop-2', item_id: 32337, item_name: 'Off-spec item', winner: 'Player', award_type: 'OS', awarded_at: '2026-09-16T13:00:00Z' },
     ] });
     if (view === 'visits') return Response.json({ visits: [{ character_key: 'raider-1', joined_at: '2026-09-17T13:00:00Z' }] });
@@ -220,6 +223,17 @@ test('an open raid detail refreshes a removed drop without a user click', async 
   assert.equal(rosterAward.children[1].textContent, 'Black Temple');
   assert.equal(rosterAward.children[2].textContent, 'MS');
   assert.notEqual(rosterAward.children[3].textContent, 'Date unavailable');
+  await rosterAward.children[0].listeners.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(get('#loot-detail-dialog').open, true);
+  assert.equal(get('#loot-detail-name').textContent, 'Kept');
+  assert.equal(get('#loot-detail-boss').textContent, 'Illidan');
+  assert.equal(get('#loot-detail-priority').textContent, 'Holy Paladin > Priest');
+  assert.equal(get('#loot-detail-priority-note').textContent, 'Best-in-slot healing weapon');
+  assert.equal(get('#loot-detail-roll-status').textContent, 'Closed');
+  assert.deepEqual(get('#loot-detail-rolls').children.map(column => column.children[1].children[0].textContent), ['Player', 'Backup']);
+  get('#close-loot-detail').listeners.click();
+  assert.equal(get('#loot-detail-dialog').open, false);
   assert.equal(get('#roster-current-count').textContent, 1);
   assert.equal(get('#roster-former-count').textContent, 1);
   const rankToggles = get('#roster-rank-toggles').children;
@@ -369,7 +383,7 @@ test('member management identifies accounts by character name, not email', () =>
   assert.match(html, /id="members-dialog"[\s\S]*id="member-select"[\s\S]*id="member-character-name"[\s\S]*id="save-member-name"[^>]*>Save character name<\/button>/);
   assert.match(script, /portalFetch\('\/api\/member-name'/);
   assert.match(script, /userId: member\.user_id,[\s\S]*characterName: document\.querySelector\('#member-character-name'\)\.value\.trim\(\)/);
-  assert.match(html, /src="\/app\.js\?v=20260922\.9"/);
+  assert.match(html, /src="\/app\.js\?v=20260922\.10"/);
 });
 
 test('every signed-in member can edit only their own character-name profile', () => {
@@ -379,7 +393,7 @@ test('every signed-in member can edit only their own character-name profile', ()
   assert.match(html, /This does not change your role or permissions/);
   assert.match(script, /portalFetch\(`\/api\/profile\?guild=/);
   assert.match(script, /body: JSON\.stringify\(\{ guild: selectedGuildID, characterName: profileCharacter\.value\.trim\(\) \}\)/);
-  assert.match(html, /src="\/app\.js\?v=20260922\.9"/);
+  assert.match(html, /src="\/app\.js\?v=20260922\.10"/);
 });
 
 test('top-menu logout clears the browser session and revokes only the current Supabase session', async () => {

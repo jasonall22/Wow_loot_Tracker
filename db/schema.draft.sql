@@ -54,6 +54,13 @@ create table public.apoc_drops (
   award_type text check (award_type in ('MS', 'OS', 'DE', 'GB', 'UNKNOWN')),
   awarded_at timestamptz,
   award_note text check (char_length(award_note) <= 2000),
+  priority text not null default '' check (char_length(priority) <= 500),
+  priority_note text not null default '' check (char_length(priority_note) <= 1000),
+  roll_started_at timestamptz,
+  roll_ends_at timestamptz,
+  roll_closed boolean,
+  roll_copy_count smallint check (roll_copy_count is null or roll_copy_count between 1 and 40),
+  roll_entries text[] not null default '{}',
   primary key (guild_id, raid_id, id),
   foreign key (guild_id, raid_id) references public.apoc_raids(guild_id, id) on delete cascade,
   check ((award_type is null and awarded_at is null and winner is null) or

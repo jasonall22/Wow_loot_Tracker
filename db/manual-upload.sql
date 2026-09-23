@@ -82,14 +82,22 @@ begin
   for v_drop in select value from jsonb_array_elements(p_drops) loop
     insert into public.apoc_drops as existing
       (guild_id, raid_id, id, item_id, item_name, boss, dropped_at,
-       winner, award_type, awarded_at, award_note)
+       winner, award_type, awarded_at, award_note, priority, priority_note,
+       roll_started_at, roll_ends_at, roll_closed, roll_copy_count, roll_entries)
     values (v_device.guild_id, v_raid_id, v_drop->>'id', (v_drop->>'item_id')::integer,
             v_drop->>'item_name', v_drop->>'boss', (v_drop->>'dropped_at')::timestamptz,
             v_drop->>'winner', v_drop->>'award_type', (v_drop->>'awarded_at')::timestamptz,
-            v_drop->>'award_note')
+            v_drop->>'award_note', coalesce(v_drop->>'priority', ''), coalesce(v_drop->>'priority_note', ''),
+            (v_drop->'roll_data'->>'startedAt')::timestamptz, (v_drop->'roll_data'->>'endsAt')::timestamptz,
+            (v_drop->'roll_data'->>'closed')::boolean, (v_drop->'roll_data'->>'copyCount')::smallint,
+            case when v_drop->'roll_data' is null then '{}'::text[] else
+              array(select entry.value::text from jsonb_array_elements(v_drop->'roll_data'->'entries') as entry(value)) end)
     on conflict on constraint apoc_drops_pkey do update set
       item_id = excluded.item_id, item_name = excluded.item_name,
       boss = excluded.boss, dropped_at = excluded.dropped_at,
+      priority = excluded.priority, priority_note = excluded.priority_note,
+      roll_started_at = excluded.roll_started_at, roll_ends_at = excluded.roll_ends_at,
+      roll_closed = excluded.roll_closed, roll_copy_count = excluded.roll_copy_count, roll_entries = excluded.roll_entries,
       winner = case when exists (
         select 1 from public.apoc_drop_corrections as c where c.guild_id = existing.guild_id
           and c.raid_id = existing.raid_id and c.drop_id = existing.id

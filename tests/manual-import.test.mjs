@@ -12,6 +12,9 @@ const snapshot = () => ({
   session: { id: 'session-1', run: 'run-1', name: 'Black Temple', runner: 'Backup',
     revision: 8, createdAt: 1789660000, closedAt: 1789667000, closed: true, raids: ['Black Temple'] },
   drops: [{ id: 'drop-1', item: 'Test Item', itemID: 12345, boss: 'Illidan', at: 1789661000,
+    priority: 'Hunters first', priorityNote: 'Phase best-in-slot',
+    roll: { startedAt: 1789661900, endsAt: 1789661960, closed: true, copyCount: 1,
+      entries: [{ name: 'Backup', roll: 88, type: 'MS' }] },
     award: { winner: 'Backup', type: 'MS', at: 1789662000, note: '' } }],
   members: [{ name: 'Backup', class: 'HUNTER', group: 1, present: false,
     visits: [[1789660000, 1789667000]] }],
@@ -35,6 +38,8 @@ test('manual import maps to the same source key and records as the bridge', () =
   assert.equal(upload.sourceKey, sourceKeyForExport(snapshot()));
   assert.equal(upload.raid.name, 'Black Temple');
   assert.equal(upload.drops[0].awardType, 'MS');
+  assert.equal(upload.drops[0].priority, 'Hunters first');
+  assert.equal(upload.drops[0].roll.entries[0].roll, 88);
   assert.equal(upload.members[0].visits[0].leftAt, new Date(1789667000 * 1000).toISOString());
   assert.equal(upload.guildRoster.members[0].characterKey, 'backup');
   assert.match(upload.payloadHash, /^[a-f0-9]{64}$/);

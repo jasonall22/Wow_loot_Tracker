@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#0c111b">
     <title>Wow Loot Tracker</title>
     <link rel="icon" type="image/png" href="/assets/apoc-logo.png">
-    <link rel="stylesheet" href="/styles.css?v=20260922.9">
+    <link rel="stylesheet" href="/styles.css?v=20260922.10">
   </head>
   <body>
     <main class="shell">
@@ -298,9 +298,33 @@
           <p id="award-dialog-message" class="message" role="status"></p>
           <button id="save-award" type="button">Save correction</button>
         </dialog>
+        <dialog id="loot-detail-dialog" class="pairing-dialog loot-detail-dialog" aria-labelledby="loot-detail-name">
+          <button id="close-loot-detail" class="dialog-close" type="button" aria-label="Close loot details">×</button>
+          <p id="loot-detail-boss" class="eyebrow">LOOT DETAILS</p>
+          <div class="loot-detail-heading">
+            <img id="loot-detail-icon" class="loot-detail-icon" alt="" width="56" height="56">
+            <div>
+              <h2 id="loot-detail-name">Item details</h2>
+              <p id="loot-detail-award" class="muted"></p>
+            </div>
+          </div>
+          <div id="loot-detail-stats" class="loot-detail-stats" aria-live="polite"></div>
+          <section class="loot-detail-section" aria-labelledby="loot-priority-heading">
+            <h3 id="loot-priority-heading">Loot priority</h3>
+            <p id="loot-detail-priority" class="loot-detail-priority"></p>
+            <p id="loot-detail-priority-note" class="muted"></p>
+          </section>
+          <section class="loot-detail-section" aria-labelledby="loot-rolls-heading">
+            <div class="loot-detail-section-heading">
+              <h3 id="loot-rolls-heading">Current rolls</h3>
+              <span id="loot-detail-roll-status" class="loot-roll-status"></span>
+            </div>
+            <div id="loot-detail-rolls" class="loot-roll-columns"></div>
+          </section>
+        </dialog>
         <div id="item-tooltip" class="item-tooltip" role="tooltip" hidden></div>
       </section>
     </main>
-    <script type="module" src="/app.js?v=20260922.9"></script>
+    <script type="module" src="/app.js?v=20260922.10"></script>
   </body>
 </html>

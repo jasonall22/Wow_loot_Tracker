@@ -34,10 +34,15 @@ export function normalizeRaidExport(snapshot, id = randomUUID()) {
     if (!drop || typeof drop !== 'object' || Array.isArray(drop)) throw badRequest();
     const award = drop.award;
     if (award && (typeof award !== 'object' || Array.isArray(award))) throw badRequest();
+    const roll = drop.roll === undefined ? undefined : (drop.roll === null ? null : {
+      startedAt: epoch(drop.roll.startedAt), endsAt: epoch(drop.roll.endsAt), closed: drop.roll.closed,
+      copyCount: drop.roll.copyCount, entries: drop.roll.entries,
+    });
     return { id: drop.id, itemId: drop.itemID === 0 ? null : drop.itemID, itemName: drop.item,
       boss: drop.boss, droppedAt: epoch(drop.at), winner: award ? award.winner : null,
       awardType: award ? award.type : null, awardedAt: award ? epoch(award.at) : null,
-      awardNote: award ? award.note : '' };
+      awardNote: award ? award.note : '', ...(drop.priority !== undefined ? { priority: drop.priority } : {}),
+      ...(drop.priorityNote !== undefined ? { priorityNote: drop.priorityNote } : {}), ...(roll !== undefined ? { roll } : {}) };
   });
   const members = snapshot.members.map(member => {
     if (!member || typeof member !== 'object' || Array.isArray(member) || !Array.isArray(member.visits)) throw badRequest();

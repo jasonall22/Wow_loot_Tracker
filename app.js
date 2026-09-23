@@ -30,6 +30,7 @@ const pairingCode = document.querySelector('#pairing-code');
 const pairingMessage = document.querySelector('#pairing-message');
 const raidDialog = document.querySelector('#raid-dialog');
 const awardDialog = document.querySelector('#award-dialog');
+const lootDetailDialog = document.querySelector('#loot-detail-dialog');
 const profileDialog = document.querySelector('#profile-dialog');
 const profileForm = document.querySelector('#profile-form');
 const profileCharacter = document.querySelector('#profile-character');
@@ -175,6 +176,81 @@ async function showItemTooltip(anchor, id, name) {
     itemTooltip.replaceChildren(heading, note);
   }
 }
+
+function normalizedRollData(value) {
+  if (!value) return null;
+  if (typeof value === 'string') {
+    try { value = JSON.parse(value); } catch { return null; }
+  }
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : null;
+}
+
+function renderRollColumn(container, label, entries) {
+  const column = document.createElement('div'); column.className = 'loot-roll-column';
+  const heading = document.createElement('h4'); heading.textContent = `${label} (${entries.length})`; column.append(heading);
+  if (!entries.length) {
+    const empty = document.createElement('p'); empty.className = 'muted'; empty.textContent = 'No rolls'; column.append(empty);
+  } else {
+    for (const entry of entries) {
+      const row = document.createElement('div'); row.className = 'loot-roll-entry';
+      const player = document.createElement('span'); player.textContent = entry.name;
+      const value = document.createElement('strong'); value.textContent = String(entry.roll);
+      row.append(player, value); column.append(row);
+    }
+  }
+  container.append(column);
+}
+
+async function openLootDetail(drop) {
+  hideItemTooltip();
+  const name = String(drop.item_name || 'Unknown item');
+  const id = Number(drop.item_id); const validID = Number.isInteger(id) && id > 0 && id <= 10000000;
+  document.querySelector('#loot-detail-boss').textContent = drop.boss ? String(drop.boss) : 'LOOT DETAILS';
+  const title = document.querySelector('#loot-detail-name'); title.textContent = name; title.className = '';
+  const icon = document.querySelector('#loot-detail-icon'); icon.hidden = !validID; icon.src = validID ? `/api/item?id=${id}&icon=1` : '';
+  const awardType = String(drop.award_type || '').toUpperCase();
+  const awardLabels = { MS: 'Main spec', OS: 'Off spec', DE: 'Disenchanted', GB: 'Guild bank', UNKNOWN: 'Other award' };
+  document.querySelector('#loot-detail-award').textContent = drop.winner
+    ? `Awarded to ${drop.winner}${awardType ? ` · ${awardLabels[awardType] || awardType}` : ''}`
+    : 'Not awarded';
+  const priority = typeof drop.priority === 'string' ? drop.priority.trim() : '';
+  document.querySelector('#loot-detail-priority').textContent = priority || 'Priority was not recorded for this raid.';
+  const priorityNote = typeof drop.priority_note === 'string' ? drop.priority_note.trim() : '';
+  const note = document.querySelector('#loot-detail-priority-note'); note.textContent = priorityNote; note.hidden = !priorityNote;
+  const rolls = document.querySelector('#loot-detail-rolls'); rolls.replaceChildren();
+  const roll = normalizedRollData(drop.roll_data);
+  const status = document.querySelector('#loot-detail-roll-status');
+  if (!roll || !Array.isArray(roll.entries)) {
+    status.textContent = '';
+    const empty = document.createElement('p'); empty.className = 'muted loot-roll-empty'; empty.textContent = 'No roll data was recorded for this item.'; rolls.append(empty);
+  } else {
+    status.textContent = roll.closed ? 'Closed' : 'Open';
+    const entries = roll.entries.filter(entry => entry && typeof entry.name === 'string' && Number.isInteger(entry.roll))
+      .sort((a, b) => b.roll - a.roll || a.name.localeCompare(b.name));
+    renderRollColumn(rolls, 'MS', entries.filter(entry => entry.type === 'MS'));
+    renderRollColumn(rolls, 'OS', entries.filter(entry => entry.type === 'OS'));
+  }
+  const stats = document.querySelector('#loot-detail-stats'); stats.replaceChildren();
+  const loading = document.createElement('p'); loading.className = 'muted'; loading.textContent = validID ? 'Loading item stats…' : 'Item stats are unavailable.'; stats.append(loading);
+  lootDetailDialog.showModal();
+  if (!validID) return;
+  try {
+    const details = await loadItemDetails(id);
+    if (!lootDetailDialog.open || Number(document.querySelector('#loot-detail-icon').src.split('id=').pop()?.split('&')[0]) !== id) return;
+    if (Number.isInteger(details.quality) && details.quality >= 0 && details.quality <= 7) title.className = `q${details.quality}`;
+    stats.replaceChildren();
+    for (const line of Array.isArray(details.lines) ? details.lines.slice(1, 12) : []) {
+      const row = document.createElement('p'); row.className = 'loot-detail-stat';
+      const parts = typeof line === 'string' ? [{ text: line, quality: 'q1' }] : Array.isArray(line) ? line : [];
+      for (const part of parts) {
+        if (typeof part?.text !== 'string' || !part.text.trim()) continue;
+        const span = document.createElement('span'); span.className = /^q[0-7]?$/.test(part.quality) ? part.quality : 'q1'; span.textContent = part.text; row.append(span);
+      }
+      if (row.children.length) stats.append(row);
+    }
+    if (!stats.children.length) stats.append(loading);
+  } catch { loading.textContent = 'Item stats are temporarily unavailable.'; stats.replaceChildren(loading); }
+}
 guildActionsMenu.addEventListener('click', (event) => {
   if (event.target.closest('button')) guildActionsMenu.open = false;
 });
@@ -233,6 +309,7 @@ function sessionExpired() {
   if (joinRequestsDialog.open) joinRequestsDialog.close();
   if (raidDialog.open) raidDialog.close();
   if (awardDialog.open) awardDialog.close();
+  if (lootDetailDialog.open) lootDetailDialog.close();
   state.session = null;
   activeRaid = null;
   returnRaid = null;
@@ -347,6 +424,7 @@ async function openDashboard(entry) {
   if (joinRequestsDialog.open) joinRequestsDialog.close();
   if (raidDialog.open) raidDialog.close();
   if (awardDialog.open) awardDialog.close();
+  if (lootDetailDialog.open) lootDetailDialog.close();
   const details = entry.guild ?? {};
   const membership = entry.membership ?? {};
   selectedGuildID = details.id;
@@ -697,7 +775,7 @@ function renderGuildRoster() {
         title.addEventListener('pointerleave', hideItemTooltip);
         title.addEventListener('focus', () => showItemTooltip(title, id, drop.item_name));
         title.addEventListener('blur', hideItemTooltip);
-        title.addEventListener('click', () => showItemTooltip(title, id, drop.item_name));
+        title.addEventListener('click', () => openLootDetail(drop));
         itemQuality(id).then(quality => { if (quality !== null) title.className = `loot-item item-q${quality}`; });
       }
       const label = document.createElement('strong'); label.textContent = drop.item_name || 'Unknown item'; title.append(label);
@@ -1246,7 +1324,7 @@ function renderDropRow(container, drop) {
       title.addEventListener('pointerleave', hideItemTooltip);
       title.addEventListener('focus', () => showItemTooltip(title, id, name));
       title.addEventListener('blur', hideItemTooltip);
-      title.addEventListener('click', () => showItemTooltip(title, id, name));
+      title.addEventListener('click', () => openLootDetail(drop));
     }
     const label = document.createElement('strong'); label.textContent = name; title.append(label);
     if (validID) itemQuality(id).then((quality) => {
@@ -1324,6 +1402,7 @@ document.querySelector('#manage-raid').addEventListener('click', () => {
 });
 document.querySelector('#close-raid-dialog').addEventListener('click', () => raidDialog.close());
 document.querySelector('#close-award-dialog').addEventListener('click', () => awardDialog.close());
+document.querySelector('#close-loot-detail').addEventListener('click', () => lootDetailDialog.close());
 awardDialog.addEventListener('close', () => { editingDrop = null; });
 
 document.querySelector('#save-raid-name').addEventListener('click', async () => {
@@ -1809,6 +1888,7 @@ function clearPortalSession() {
   if (joinRequestsDialog.open) joinRequestsDialog.close();
   if (raidDialog.open) raidDialog.close();
   if (awardDialog.open) awardDialog.close();
+  if (lootDetailDialog.open) lootDetailDialog.close();
   state.session = null;
   activeRaid = null;
   returnRaid = null;

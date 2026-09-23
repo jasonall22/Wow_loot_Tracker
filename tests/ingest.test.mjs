@@ -11,7 +11,9 @@ const body = () => {
     requestId: '10000000-0000-4000-8000-000000000001', sourceKey: 'source-a', sourceRevision: 2,
     capturedAt: '2026-09-17T14:00:00Z',
     raid: { name: 'Trial', runId: 'run-a', createdAt: '2026-09-17T13:00:00Z', closedAt: null },
-    drops: [{ id: 'drop-a', itemId: 123, itemName: 'Test item', boss: 'Boss', droppedAt: '2026-09-17T13:30:00Z', winner: 'Player', awardType: 'MS', awardedAt: '2026-09-17T13:31:00Z', awardNote: '' }],
+    drops: [{ id: 'drop-a', itemId: 123, itemName: 'Test item', boss: 'Boss', droppedAt: '2026-09-17T13:30:00Z', winner: 'Player', awardType: 'MS', awardedAt: '2026-09-17T13:31:00Z', awardNote: '',
+      priority: 'Caster first', priorityNote: '', roll: { startedAt: '2026-09-17T13:29:00Z', endsAt: '2026-09-17T13:30:00Z', closed: true,
+        copyCount: 1, entries: [{ name: 'Player', roll: 99, type: 'MS' }] } }],
     members: [{ characterKey: 'player', name: 'Player', class: 'MAGE', raidGroup: 1, present: true, visits: [{ joinedAt: '2026-09-17T13:00:00Z', leftAt: null }] }],
   };
   value.payloadHash = digestPayload(value);
@@ -37,6 +39,8 @@ test('manual upload sends explicit fields with a device digest and no guild chos
   assert.equal(sent.payload.p_token_digest, digestSecret(deviceToken));
   assert.equal(sent.payload.p_raid.name, 'Trial');
   assert.equal(sent.payload.p_drops[0].award_type, 'MS');
+  assert.equal(sent.payload.p_drops[0].priority, 'Caster first');
+  assert.equal(sent.payload.p_drops[0].roll_data.entries[0].roll, 99);
   assert.equal(sent.payload.p_members[0].visits[0].joined_at, '2026-09-17T13:00:00Z');
   assert.equal(sent.options.body.includes(deviceToken), false);
   assert.equal(Object.hasOwn(sent.payload, 'guild_id'), false);

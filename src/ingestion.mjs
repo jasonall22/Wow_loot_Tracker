@@ -63,6 +63,7 @@ export function databaseRecords(body) {
       id: drop.id, item_id: drop.itemId, item_name: drop.itemName,
       boss: drop.boss, dropped_at: drop.droppedAt, winner: drop.winner,
       award_type: drop.awardType, awarded_at: drop.awardedAt, award_note: drop.awardNote,
+      priority: drop.priority ?? '', priority_note: drop.priorityNote ?? '', roll_data: drop.roll ?? null,
     })),
     p_members: body.members.map(member => ({
       character_key: member.characterKey, name: member.name, class: member.class,
@@ -92,7 +93,9 @@ export function validateUploadRecords(body) {
       !Array.isArray(drops) || drops.length > 500 || !Array.isArray(members) || members.length > 200) throw badRequest();
   const dropIDs = new Set();
   for (const drop of drops) {
-    if (!exact(drop, ['id', 'itemId', 'itemName', 'boss', 'droppedAt', 'winner', 'awardType', 'awardedAt', 'awardNote']) ||
+    const requiredDropKeys = ['id', 'itemId', 'itemName', 'boss', 'droppedAt', 'winner', 'awardType', 'awardedAt', 'awardNote'];
+    const allowedDropKeys = [...requiredDropKeys, 'priority', 'priorityNote', 'roll'];
+    if (!drop || typeof drop !== 'object' || Array.isArray(drop) || requiredDropKeys.some(key => !Object.hasOwn(drop, key)) || Object.keys(drop).some(key => !allowedDropKeys.includes(key)) ||
         !bounded(drop.id, 1, 200) || dropIDs.has(drop.id) ||
         (drop.itemId !== null && (!Number.isSafeInteger(drop.itemId) || drop.itemId < 1 || drop.itemId > 10_000_000)) ||
         !bounded(drop.itemName, 1, 300) || !bounded(drop.boss, 0, 200) || !stamp(drop.droppedAt) ||
@@ -100,7 +103,21 @@ export function validateUploadRecords(body) {
         (drop.awardType !== null && !['MS', 'OS', 'DE', 'GB', 'UNKNOWN'].includes(drop.awardType)) ||
         !optionalStamp(drop.awardedAt) || !bounded(drop.awardNote, 0, 2000) ||
         (drop.awardType === null && (drop.winner !== null || drop.awardedAt !== null)) ||
-        (drop.awardType !== null && drop.awardedAt === null)) throw badRequest();
+        (drop.awardType !== null && drop.awardedAt === null) ||
+        (drop.priority !== undefined && !bounded(drop.priority, 0, 500)) ||
+        (drop.priorityNote !== undefined && !bounded(drop.priorityNote, 0, 1000))) throw badRequest();
+    if (drop.roll !== undefined && drop.roll !== null) {
+      const roll = drop.roll;
+      if (!exact(roll, ['startedAt', 'endsAt', 'closed', 'copyCount', 'entries']) || !stamp(roll.startedAt) || !stamp(roll.endsAt) ||
+          typeof roll.closed !== 'boolean' || !Number.isSafeInteger(roll.copyCount) || roll.copyCount < 1 || roll.copyCount > 40 ||
+          !Array.isArray(roll.entries) || roll.entries.length > 80) throw badRequest();
+      const rollNames = new Set();
+      for (const entry of roll.entries) {
+        if (!exact(entry, ['name', 'roll', 'type']) || !bounded(entry.name, 1, 200) || rollNames.has(entry.name.toLocaleLowerCase()) ||
+            !Number.isSafeInteger(entry.roll) || entry.roll < 1 || entry.roll > 100 || !['MS', 'OS'].includes(entry.type)) throw badRequest();
+        rollNames.add(entry.name.toLocaleLowerCase());
+      }
+    }
     dropIDs.add(drop.id);
   }
   const memberIDs = new Set();

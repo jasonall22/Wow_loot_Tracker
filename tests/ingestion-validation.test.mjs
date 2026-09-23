@@ -23,8 +23,21 @@ test('pairing challenge is random, digest-only, and expires quickly', () => {
 
 test('upload parser accepts bounded explicit metadata', async () => {
   const body = validUpload();
+  body.drops[0].priority = 'Caster first';
+  body.drops[0].priorityNote = 'Best-in-slot';
+  body.drops[0].roll = { startedAt: '2026-09-17T13:29:00Z', endsAt: '2026-09-17T13:30:00Z', closed: true,
+    copyCount: 1, entries: [{ name: 'Player', roll: 98, type: 'MS' }] };
+  body.payloadHash = digestPayload(body);
   const request = new Request('https://example.test/api/ingest', { method: 'POST', body: JSON.stringify(body) });
   assert.deepEqual(await parseUploadBody(request), body);
+});
+
+test('upload parser rejects malformed or duplicate loot rolls', async () => {
+  const body = validUpload();
+  body.drops[0].roll = { startedAt: body.drops[0].droppedAt, endsAt: body.drops[0].droppedAt, closed: false,
+    copyCount: 1, entries: [{ name: 'Player', roll: 101, type: 'MS' }] };
+  body.payloadHash = digestPayload(body);
+  await assert.rejects(() => parseUploadBody(new Request('https://example.test', { method: 'POST', body: JSON.stringify(body) })));
 });
 
 test('guild roster is optional, bounded, and does not change the raid payload hash', async () => {

@@ -1,7 +1,14 @@
 -- Preserve removed loot for correction/audit history, but hide it from the
 -- current raid view. The source snapshot controls whether a drop is present.
 alter table public.apoc_drops
-  add column if not exists source_present boolean not null default true;
+  add column if not exists source_present boolean not null default true,
+  add column if not exists priority text not null default '' check (char_length(priority) <= 500),
+  add column if not exists priority_note text not null default '' check (char_length(priority_note) <= 1000),
+  add column if not exists roll_started_at timestamptz,
+  add column if not exists roll_ends_at timestamptz,
+  add column if not exists roll_closed boolean,
+  add column if not exists roll_copy_count smallint check (roll_copy_count is null or roll_copy_count between 1 and 40),
+  add column if not exists roll_entries text[] not null default '{}';
 
 create or replace function public.ingest_apoc_raid(
   p_token_digest text, p_request_id uuid, p_source_key text,
@@ -96,14 +103,22 @@ begin
   for v_drop in select value from jsonb_array_elements(p_drops) loop
     insert into public.apoc_drops as existing
       (guild_id, raid_id, id, item_id, item_name, boss, dropped_at,
-       winner, award_type, awarded_at, award_note)
+       winner, award_type, awarded_at, award_note, priority, priority_note,
+       roll_started_at, roll_ends_at, roll_closed, roll_copy_count, roll_entries)
     values (v_device.guild_id, v_raid_id, v_drop->>'id', (v_drop->>'item_id')::integer,
             v_drop->>'item_name', v_drop->>'boss', (v_drop->>'dropped_at')::timestamptz,
             v_drop->>'winner', v_drop->>'award_type', (v_drop->>'awarded_at')::timestamptz,
-            v_drop->>'award_note')
+            v_drop->>'award_note', coalesce(v_drop->>'priority', ''), coalesce(v_drop->>'priority_note', ''),
+            (v_drop->'roll_data'->>'startedAt')::timestamptz, (v_drop->'roll_data'->>'endsAt')::timestamptz,
+            (v_drop->'roll_data'->>'closed')::boolean, (v_drop->'roll_data'->>'copyCount')::smallint,
+            case when v_drop->'roll_data' is null then '{}'::text[] else
+              array(select entry.value::text from jsonb_array_elements(v_drop->'roll_data'->'entries') as entry(value)) end)
     on conflict on constraint apoc_drops_pkey do update set
       item_id = excluded.item_id, item_name = excluded.item_name,
       boss = excluded.boss, dropped_at = excluded.dropped_at, source_present = true,
+      priority = excluded.priority, priority_note = excluded.priority_note,
+      roll_started_at = excluded.roll_started_at, roll_ends_at = excluded.roll_ends_at,
+      roll_closed = excluded.roll_closed, roll_copy_count = excluded.roll_copy_count, roll_entries = excluded.roll_entries,
       winner = case when exists (
         select 1 from public.apoc_drop_corrections as c where c.guild_id = existing.guild_id
           and c.raid_id = existing.raid_id and c.drop_id = existing.id
