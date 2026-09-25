@@ -4666,7 +4666,7 @@ function APOCLootPrio:RefreshLootTrackerSettingsPanel()
       or health == "missing" and " | |cffff4040NO RUNNER|r"
       or health == "waiting" and " | |cffffd100Connecting|r"
       or " | |cff40ff40Active|r"
-    local suffix = self:IsMasterLooter and self:IsMasterLooter() and " (you)" or ""
+    local suffix = self.IsMasterLooter and self:IsMasterLooter() and " (you)" or ""
     panel.runnerValue:SetText("Master Looter: " .. (trackerOwner and (ShortDisplayName(trackerOwner) or trackerOwner) or "Not detected") .. suffix .. healthSuffix .. runSuffix)
   end
   -- Runner assignment has been removed. Keep old frame fields hidden so saved
