@@ -48,6 +48,8 @@ let selectedGuildID = null;
 let selectedGuildName = '';
 let pendingRaidExport = null;
 let guilds = [];
+const wowVersionStorage = typeof localStorage !== 'undefined' ? localStorage : sessionStorage;
+let selectedWowVersion = wowVersionStorage.getItem('apoc_wow_version') || 'forever';
 let activeRaid = null;
 let returnRaid = null;
 let rosterPlayers = [];
@@ -478,7 +480,8 @@ async function openDashboard(entry) {
   guildNav.hidden = false;
   setGuildNav('overview');
   document.querySelector('#dashboard-title').textContent = details.name ?? 'Guild';
-  document.querySelector('#dashboard-subtitle').textContent = [details.realm, details.faction].filter(Boolean).join(' · ');
+  const wowVersionLabel = selectedWowVersion === 'tbc' ? 'TBC' : 'WoW Forever';
+  document.querySelector('#dashboard-subtitle').textContent = [wowVersionLabel, details.realm, details.faction].filter(Boolean).join(' · ');
   document.querySelector('#access-label').textContent = membership.role === 'admin' ? 'Admin' : membership.role === 'officer' ? 'Officer' : 'Member';
   pairingButton.hidden = entry.permissions?.uploadRaids !== true;
   importButton.hidden = entry.permissions?.uploadRaids !== true;
@@ -1793,6 +1796,7 @@ function showSignedIn(checkInvites = false) {
   createAccount.hidden = true;
   signedOut.hidden = true;
   signedIn.hidden = false;
+  document.querySelector('#wow-version-select').value = selectedWowVersion;
   guildMessage.textContent = '';
   guildMessage.className = 'message';
   const beforeGuilds = checkInvites ? acceptPendingInvites().catch((error) => {
@@ -2021,6 +2025,10 @@ async function signOutPortal() {
 
 document.querySelector('#sign-out').addEventListener('click', signOutPortal);
 document.querySelector('#nav-sign-out').addEventListener('click', signOutPortal);
+document.querySelector('#wow-version-select').addEventListener('change', (event) => {
+  selectedWowVersion = event.target.value === 'tbc' ? 'tbc' : 'forever';
+  wowVersionStorage.setItem('apoc_wow_version', selectedWowVersion);
+});
 
 function receiveAuthLink() {
   if (typeof window === 'undefined') return false;
