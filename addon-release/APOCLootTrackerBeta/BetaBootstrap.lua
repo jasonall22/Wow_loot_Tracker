@@ -2,7 +2,7 @@
 -- Do not enable both addons at once: they intentionally share UI globals so
 -- the beta can exercise the same production UI without maintaining a fork.
 APOCLootPrio = APOCLootPrio or {}
-APOCLootPrio.BUILD_VERSION = "0.2.0-beta.95-guild-bank.4"
+APOCLootPrio.BUILD_VERSION = "0.2.0-beta.96-guild-bank.5"
 APOCLootTrackerBetaDB = APOCLootTrackerBetaDB or {}
 APOCLootPrioDB = APOCLootTrackerBetaDB
 APOCLootPrioBetaMode = true

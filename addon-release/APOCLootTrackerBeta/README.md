@@ -1,4 +1,4 @@
-# APOC Loot Tracker Beta — 0.2.0-beta.95-guild-bank.4
+# APOC Loot Tracker Beta — 0.2.0-beta.96-guild-bank.5
 
 Cleanup candidate for TBC Anniversary (Interface 20505). Live raid authority
 is now always the WoW Master Looter; the separate assignable runner has been

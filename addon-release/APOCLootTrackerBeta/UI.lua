@@ -3704,6 +3704,11 @@ local function CreateRaidLootPanel(parent)
   local savedWidth, savedHeight = GetSavedPanelSize("lootTracker", RAID_LOOT_WINDOW_WIDTH, RAID_LOOT_WINDOW_HEIGHT)
   savedWidth = ClampNumber(savedWidth, RAID_LOOT_WINDOW_WIDTH, RAID_LOOT_WINDOW_MAX_WIDTH)
   savedHeight = ClampNumber(savedHeight, RAID_LOOT_WINDOW_HEIGHT, RAID_LOOT_WINDOW_MAX_HEIGHT)
+  -- Keep a size saved on a 4K display usable on more common 1080p setups.
+  local screenWidth = UIParent.GetWidth and UIParent:GetWidth() or savedWidth
+  local screenHeight = UIParent.GetHeight and UIParent:GetHeight() or savedHeight
+  savedWidth = math.min(savedWidth, math.max(RAID_LOOT_WINDOW_WIDTH, math.floor(screenWidth * .86)))
+  savedHeight = math.min(savedHeight, math.max(RAID_LOOT_WINDOW_HEIGHT, math.floor(screenHeight * .90)))
   panel:SetSize(savedWidth, savedHeight)
   panel:SetPoint("TOPLEFT", parent, "TOPRIGHT", 12, 0)
   panel:SetMovable(true)
@@ -3989,13 +3994,14 @@ local function CreateRaidLootPanel(parent)
   panel.memberSummary:SetJustifyH("LEFT")
   panel.memberSummary:SetTextColor(.9, .84, .72)
 
-  panel.memberScroll = CreateFrame("Frame", nil, panel)
+  panel.memberScroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
   panel.memberScroll:SetPoint("TOPLEFT", 18, -512)
   panel.memberScroll:SetSize(RAID_LOOT_WINDOW_WIDTH - 36, 180)
 
   panel.memberContent = CreateFrame("Frame", nil, panel.memberScroll)
   panel.memberContent:SetPoint("TOPLEFT", 0, 0)
   panel.memberContent:SetSize(RAID_LOOT_WINDOW_WIDTH - 62, 1)
+  panel.memberScroll:SetScrollChild(panel.memberContent)
 
   panel.typeLabel = AddEditorLabel(panel, "Type", 18, -696)
   AddAwardTypeButtons(panel, 62, -694, 54)
