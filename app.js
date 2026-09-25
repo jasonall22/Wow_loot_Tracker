@@ -84,6 +84,36 @@ const itemQualityQueue = [];
 let activeItemQualityRequests = 0;
 let tooltipAnchor = null;
 let tooltipSequence = 0;
+const tradeTimerNodes = new Set();
+
+function tradeExpiry(drop) {
+  const value = drop?.dropped_at ?? drop?.droppedAt;
+  if (typeof value === 'number' && Number.isFinite(value)) return value > 100000000000 ? value : value * 1000;
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatTradeTimeLeft(drop, now = Date.now()) {
+  const expiry = tradeExpiry(drop);
+  if (expiry === null) return '';
+  const remaining = expiry + (2 * 60 * 60 * 1000) - now;
+  if (remaining <= 0) return 'Trade expired';
+  const totalMinutes = Math.ceil(remaining / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours > 0 ? `Trade: ${hours}h ${minutes}m left` : `Trade: ${minutes}m left`;
+}
+
+function updateTradeTimers() {
+  for (const entry of tradeTimerNodes) {
+    if (!entry.node?.isConnected) {
+      tradeTimerNodes.delete(entry);
+      continue;
+    }
+    entry.node.textContent = formatTradeTimeLeft(entry.drop);
+  }
+}
 
 function loadItemDetails(id) {
   let pending = itemDetails.get(id);
@@ -1246,6 +1276,7 @@ async function refreshVisible() {
   } finally { refreshingView = false; }
 }
 setInterval(refreshVisible, 5000);
+setInterval(updateTradeTimers, 30000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshVisible(); });
 
 function renderDetailList(container, rows, fields) {
@@ -1269,30 +1300,48 @@ function winnerClass(winner) {
   return WOW_CLASSES.has(className) ? className.toLowerCase() : null;
 }
 
+function isPatternDrop(drop, bossName) {
+  const itemName = String(drop.item_name || '').trim();
+  return bossName.toLocaleLowerCase() === 'patterns' || /^pattern\s*:/i.test(itemName);
+}
+
+function isGemDrop(drop, bossName) {
+  if (isPatternDrop(drop, bossName)) return false;
+  const normalizedBoss = bossName.toLocaleLowerCase();
+  // The addon records instance-wide miscellaneous loot as Dungeon Loot.
+  // Keep patterns in Trash, and collapse the remaining DE/guild-bank section
+  // by default. Dungeon Loot is the addon's name for this miscellaneous pool.
+  return normalizedBoss === 'dungeon loot' || normalizedBoss === 'gems';
+}
+
 function renderDropList(container, drops) {
+  tradeTimerNodes.clear();
   // Keep the encounter order supplied by the raid record, while placing all
   // drops from the same boss together and retaining their order within it.
   const groups = new Map();
   for (const drop of drops) {
-    const bossName = typeof drop.boss === 'string' && drop.boss.trim() ? drop.boss.trim() : 'Boss not recorded';
+    const recordedBoss = typeof drop.boss === 'string' && drop.boss.trim() ? drop.boss.trim() : 'Boss not recorded';
+    const bossName = isPatternDrop(drop, recordedBoss) ? 'Trash' : isGemDrop(drop, recordedBoss) ? 'DE / Guild Bank' : recordedBoss;
     if (!groups.has(bossName)) groups.set(bossName, []);
     groups.get(bossName).push(drop);
   }
-  for (const [bossName, bossDrops] of groups) {
+  const renderBossGroup = (bossName, bossDrops, options = {}) => {
     const group = document.createElement('section'); group.className = 'loot-boss-group';
+    if (options.secondary) group.className += ' loot-boss-secondary-group';
     const toggle = document.createElement('button'); toggle.className = 'loot-boss-toggle'; toggle.type = 'button';
-    const label = document.createElement('strong'); label.textContent = bossName;
+    const label = document.createElement('strong'); label.textContent = options.label || bossName;
     const count = document.createElement('span'); count.textContent = `${bossDrops.length} ${bossDrops.length === 1 ? 'item' : 'items'}`;
     const chevron = document.createElement('span'); chevron.className = 'loot-boss-chevron'; chevron.textContent = '▾'; chevron.setAttribute('aria-hidden', 'true');
     toggle.append(label, count, chevron);
     const body = document.createElement('div'); body.className = 'loot-boss-items';
+    const collapseKey = options.collapseKey || bossName;
     const setExpanded = (expanded) => {
       body.hidden = !expanded;
       toggle.setAttribute('aria-expanded', String(expanded));
-      if (expanded) collapsedLootBosses.delete(bossName);
-      else { collapsedLootBosses.add(bossName); hideItemTooltip(); }
+      if (expanded) collapsedLootBosses.delete(collapseKey);
+      else { collapsedLootBosses.add(collapseKey); hideItemTooltip(); }
     };
-    setExpanded(!collapsedLootBosses.has(bossName));
+    setExpanded(options.defaultCollapsed ? false : !collapsedLootBosses.has(collapseKey));
     toggle.addEventListener('click', () => setExpanded(body.hidden));
     group.append(toggle, body);
     const headings = document.createElement('div'); headings.className = 'loot-column-headings';
@@ -1302,6 +1351,37 @@ function renderDropList(container, drops) {
     body.append(headings);
     container.append(group);
     for (const drop of bossDrops) renderDropRow(body, drop);
+  };
+  const orderedGroups = [...groups.entries()];
+  const specialGroups = new Set(['Trash', 'DE / Guild Bank']);
+  const normalGroups = orderedGroups.filter(([bossName]) => !specialGroups.has(bossName));
+  const trashGroup = orderedGroups.find(([bossName]) => bossName === 'Trash');
+  const deGuildGroup = orderedGroups.find(([bossName]) => bossName === 'DE / Guild Bank');
+  // Drop records arrive in kill order. Keep that order for bosses, but keep
+  // the compact utility sections at the end so the raid flow reads naturally.
+  const displayGroups = [...normalGroups];
+  if (trashGroup) displayGroups.push(trashGroup);
+  if (deGuildGroup) displayGroups.push(deGuildGroup);
+
+  for (const [bossName, bossDrops] of displayGroups) {
+    if (bossName.toLocaleLowerCase() === 'trash') {
+      const compactDrops = bossDrops.filter((drop) => !['GB', 'DE'].includes(String(drop.award_type || '').toUpperCase()));
+      const guildOrDisenchantDrops = bossDrops.filter((drop) => ['GB', 'DE'].includes(String(drop.award_type || '').toUpperCase()));
+      if (guildOrDisenchantDrops.length) {
+        renderBossGroup(bossName, guildOrDisenchantDrops, {
+          label: 'Trash · Guild / DE',
+          collapseKey: `${bossName}:guild-de`,
+          defaultCollapsed: true,
+          secondary: true,
+        });
+      }
+      if (compactDrops.length) renderBossGroup(bossName, compactDrops);
+    } else {
+      renderBossGroup(bossName, bossDrops, {
+        defaultCollapsed: bossName === 'DE / Guild Bank',
+        secondary: bossName === 'DE / Guild Bank',
+      });
+    }
   }
 }
 
@@ -1326,7 +1406,14 @@ function renderDropRow(container, drop) {
       title.addEventListener('blur', hideItemTooltip);
       title.addEventListener('click', () => openLootDetail(drop));
     }
-    const label = document.createElement('strong'); label.textContent = name; title.append(label);
+    const itemMeta = document.createElement('span'); itemMeta.className = 'loot-item-meta';
+    const label = document.createElement('strong'); label.textContent = name; itemMeta.append(label);
+    const tradeTimer = document.createElement('small'); tradeTimer.className = 'loot-trade-timer';
+    tradeTimer.textContent = formatTradeTimeLeft(drop);
+    tradeTimer.hidden = !tradeTimer.textContent;
+    if (!tradeTimer.hidden) tradeTimerNodes.add({ node: tradeTimer, drop });
+    itemMeta.append(tradeTimer);
+    title.append(itemMeta);
     if (validID) itemQuality(id).then((quality) => {
       if (quality === null) return;
       title.className = `loot-item item-q${quality}`;

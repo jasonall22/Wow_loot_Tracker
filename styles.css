@@ -174,6 +174,10 @@ input:focus { border-color: var(--wow-gold); box-shadow: 0 0 0 3px rgba(223, 173
 .loot-column-headings span { float: none; font-size: inherit; line-height: normal; }
 .loot-column-headings span:nth-child(3) { grid-column: 3; }
 .loot-item { width: fit-content; max-width: 100%; margin: 0; padding: 0; display: inline-flex; align-items: center; gap: 10px; background: none; color: var(--wow-ivory); text-align: left; border: 0; border-radius: 4px; font-size: 13px; font-weight: 700; }
+.loot-item-meta { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.loot-item-meta strong { overflow-wrap: anywhere; }
+.loot-trade-timer { color: #e8bd67; font-size: 10px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+.loot-trade-timer[hidden] { display: none; }
 .loot-item.item-q0 strong { color: #9d9d9d; }
 .loot-item.item-q1 strong { color: #fff; }
 .loot-item.item-q2 strong { color: #1eff00; }
@@ -267,6 +271,9 @@ input:focus { border-color: var(--wow-gold); box-shadow: 0 0 0 3px rgba(223, 173
 .danger-button:hover { background: #653030; }
 .drop-edit { width: auto; grid-column: 4; justify-self: end; margin: 0; padding: 6px 10px; color: var(--wow-gold-bright); font-size: 11px; white-space: nowrap; }
 .loot-boss-group { min-width: 0; border-bottom: 1px solid #354052; }
+.loot-boss-secondary-group { background: rgba(14, 21, 33, .38); }
+.loot-boss-secondary-group .loot-boss-toggle strong { color: #aeb8c7; }
+.loot-boss-secondary-group .loot-boss-toggle .loot-boss-chevron { color: #aeb8c7; }
 .loot-boss-toggle { width: 100%; display: flex; align-items: center; gap: 12px; margin: 0; padding: 13px 0; border: 0; border-radius: 0; background: transparent; color: var(--wow-gold-bright); text-align: left; }
 .loot-boss-toggle:hover { background: #ffffff0b; }
 .loot-boss-toggle:focus-visible { outline: 2px solid var(--wow-gold-bright); outline-offset: -2px; }
