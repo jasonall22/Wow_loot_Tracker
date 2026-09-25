@@ -3996,7 +3996,16 @@ local function CreateRaidLootPanel(parent)
   panel.memberSummary:SetJustifyH("LEFT")
   panel.memberSummary:SetTextColor(.9, .84, .72)
 
-  panel.memberScroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
+  -- Use a plain clipped scroll frame here. The Blizzard panel template places
+  -- its arrow buttons outside the scaled roster area on some UI scales.
+  panel.memberScroll = CreateFrame("ScrollFrame", nil, panel)
+  panel.memberScroll:EnableMouseWheel(true)
+  panel.memberScroll:SetScript("OnMouseWheel", function(scrollFrame, delta)
+    local child = scrollFrame:GetScrollChild()
+    local maxScroll = math.max(0, (child and child:GetHeight() or 0) - scrollFrame:GetHeight())
+    local nextScroll = math.max(0, math.min(maxScroll, scrollFrame:GetVerticalScroll() - (delta * 32)))
+    scrollFrame:SetVerticalScroll(nextScroll)
+  end)
   panel.memberScroll:SetPoint("TOPLEFT", 18, -512)
   panel.memberScroll:SetSize(RAID_LOOT_WINDOW_WIDTH - 36, 180)
 
