@@ -2,7 +2,7 @@
 ## Title: APOC Loot Tracker - Multi-Run Beta
 ## Notes: Isolated beta for Live Raid sync, group-scoped live loot, and append-only guild history.
 ## Author: APOC
-## Version: 0.2.0-beta.92-guild-bank.1
+## Version: 0.2.0-beta.93-guild-bank.2
 ## SavedVariables: APOCLootTrackerBetaDB, APOCLootTrackerBetaExport, APOCLiveBridgeDB
 
 BetaBootstrap.lua

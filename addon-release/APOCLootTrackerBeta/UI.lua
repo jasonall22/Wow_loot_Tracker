@@ -1303,7 +1303,6 @@ local function SetPanelAwardType(panel, awardType)
     local field = panel[fieldName]
     if field then
       if guildBank then field:SetText("") end
-      if field.SetEnabled then field:SetEnabled(not guildBank) end
     end
   end
   if guildBank then panel.selectedWinnerName = nil end
@@ -1323,8 +1322,7 @@ local function AddAwardTypeButtons(panel, x, y, buttonWidth, parent)
   for index, option in ipairs(types) do
     local button = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
     local width = option.width or buttonWidth or 54
-    local offset = 0
-    for previous = 1, index - 1 do offset = offset + (types[previous].width or buttonWidth or 54) + 6 end
+    local offset = (index - 1) * ((buttonWidth or 54) + 6)
     button:SetSize(width, 22)
     button:SetPoint("TOPLEFT", x + offset, y)
     button:SetText(option.text)
@@ -4462,13 +4460,12 @@ function APOCLootPrio:LayoutRaidLootPanel()
   end
   if panel.awardTypeButtons then
     local order = {"MS", "OS", "DE", "GB"}
-    local offset = 0
+    local positions = {MS = 0, OS = 60, DE = 120, GB = 180}
     for index, awardType in ipairs(order) do
       local button = panel.awardTypeButtons[awardType]
       if button then
         button:ClearAllPoints()
-        button:SetPoint("TOPLEFT", 62 + offset, typeY + 2)
-        offset = offset + button:GetWidth() + 6
+        button:SetPoint("TOPLEFT", 62 + (positions[awardType] or ((index - 1) * 60)), typeY + 2)
       end
     end
   end
