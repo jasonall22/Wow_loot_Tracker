@@ -170,6 +170,7 @@ local RAID_LOOT_WINDOW_WIDTH = 820
 local RAID_LOOT_WINDOW_HEIGHT = 960
 local RAID_LOOT_WINDOW_MAX_WIDTH = 1180
 local RAID_LOOT_WINDOW_MAX_HEIGHT = 1200
+local RAID_LOOT_WINDOW_UI_SCALE = .78
 local RAID_LOOT_QUEUE_MAX_WIDTH = 980
 local RECENT_AWARDS_PANEL_WIDTH = 400
 local RECENT_AWARDS_PANEL_HEIGHT = 420
@@ -3710,6 +3711,7 @@ local function CreateRaidLootPanel(parent)
   savedWidth = math.min(savedWidth, math.max(RAID_LOOT_WINDOW_WIDTH, math.floor(screenWidth * .86)))
   savedHeight = math.min(savedHeight, math.max(RAID_LOOT_WINDOW_HEIGHT, math.floor(screenHeight * .90)))
   panel:SetSize(savedWidth, savedHeight)
+  panel:SetScale(RAID_LOOT_WINDOW_UI_SCALE)
   panel:SetPoint("TOPLEFT", parent, "TOPRIGHT", 12, 0)
   panel:SetMovable(true)
   panel:EnableMouse(true)
