@@ -4555,19 +4555,25 @@ function APOCLootPrio:RefreshGroupMemberList()
   end
 
   local currentWinnerKey = RosterNameKey(panel.selectedWinnerName)
-  local columns = 5
+  -- Stack raid groups in rows so the winner picker stays compact on screen:
+  -- Groups 1-3 on the first row, Groups 4-6 on the second row, etc.
+  local columns = 3
   local gap = 8
   local rosterWidth = panel.memberScroll and panel.memberScroll.GetWidth and panel.memberScroll:GetWidth() or (RAID_LOOT_WINDOW_WIDTH - 36)
   local columnWidth = math.floor((math.max(1, rosterWidth - 26) - ((columns - 1) * gap)) / columns)
   local shown = 0
   local tallestRows = 1
+  local groupBlockHeight = 32 + (5 * (GROUP_MEMBER_BUTTON_HEIGHT + 4))
+  local groupCount = math.max(5, #groups)
+  local groupRows = math.max(1, math.ceil(groupCount / columns))
 
-  for groupIndex = 1, columns do
-    local x = (groupIndex - 1) * (columnWidth + gap)
+  for groupIndex = 1, groupCount do
+    local gridColumn = (groupIndex - 1) % columns
+    local gridRow = math.floor((groupIndex - 1) / columns)
 
     local columnFrame = CreateFrame("Frame", nil, content)
-    columnFrame:SetPoint("TOPLEFT", x, 0)
-    columnFrame:SetSize(columnWidth, 32 + (5 * (GROUP_MEMBER_BUTTON_HEIGHT + 4)))
+    columnFrame:SetPoint("TOPLEFT", gridColumn * (columnWidth + gap), -(gridRow * groupBlockHeight))
+    columnFrame:SetSize(columnWidth, groupBlockHeight)
 
     local heading = Font(columnFrame, 10, "Group " .. tostring(groupIndex), "GameFontHighlight")
     heading:SetPoint("TOPLEFT", 0, 0)
@@ -4636,7 +4642,7 @@ function APOCLootPrio:RefreshGroupMemberList()
     panel.memberSummary:SetText(tostring(shown) .. " shown of " .. tostring(total) .. " raid members")
   end
 
-  content:SetHeight(32 + (tallestRows * (GROUP_MEMBER_BUTTON_HEIGHT + 4)))
+  content:SetHeight(groupRows * groupBlockHeight)
   if panel.memberScroll and panel.memberScroll.UpdateScrollChildRect then
     panel.memberScroll:UpdateScrollChildRect()
   end
